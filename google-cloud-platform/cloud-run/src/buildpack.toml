@@ -1,0 +1,10 @@
+api = "0.2"
+
+[buildpack]
+id = "instana.gcp.cloudrun"
+version = "0.0.1"
+name = "Instana Google Cloud Run Buildpack"
+homepage = "https://github.com/instana/instana-buildpacks"
+
+[[stacks]]
+id = "google"

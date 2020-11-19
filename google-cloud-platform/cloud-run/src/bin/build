@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+echo "=== Instana Buildpack for Google Cloud Run ==="
+
+readonly LAYERS_DIR="${1}"
+
+collector_installed=false
+
+if [ -f package.json ]; then
+    echo '|-> Found a Node.js application (found "package.json" file)'
+
+    readonly nodejs_version=$(node --version)
+
+    nodejs_abi_version=$(echo "${nodejs_version}" | sed -r 's/v([0-9]*)\..*/\1/')
+
+    readonly nodejs_instrumentation_archive=$(find /cnb/buildpacks/instana.gcp.cloudrun -name nodejs-instrumentation.tgz | head -1)
+
+    echo "|-> Detected Node.js version ${nodejs_version}"
+
+    # Check if we ship an instrumentation for this node.js version
+    if ! tar -tzf "${nodejs_instrumentation_archive}" -C /workspace "./${nodejs_abi_version}/node_modules" > /dev/null 2>&1; then
+        echo "|-!!! This version of the Instana Google Cloud Run Buildpack does not support this Node.js version"
+        exit 1
+    fi
+
+    echo '|-> Installing the @instana/google-cloud-run module and its dependencies'
+
+    tar -xzf "${nodejs_instrumentation_archive}" -C /workspace "./${nodejs_abi_version}/node_modules" --strip-components=2
+
+    echo '|-> Creating the "nodejs" layer'
+    readonly instana_nodejs_layer="${LAYERS_DIR}/nodejs"
+    echo 'launch = true' > "${instana_nodejs_layer}.toml"
+
+    echo '|-> Exporting the "NODE_OPTIONS" environment variable'
+    mkdir -p "${instana_nodejs_layer}/env"
+    echo -n "--require /workspace/node_modules/@instana/google-cloud-run" > "${instana_nodejs_layer}/env/NODE_OPTIONS"
+
+    collector_installed=true
+fi
+
+if ls *.csproj > /dev/null 2>&1; then
+    echo '|-> Found a .NET Core application (found a ".csproj" file)'
+
+    echo '|-> Creating the "netcore" layer'
+    readonly instana_netcore_layer="${LAYERS_DIR}/netcore"
+    echo 'launch = true' > "${instana_netcore_layer}.toml"
+
+    echo '|-> Unpacking .NET Core instrumentation'
+    mkdir -p "${instana_netcore_layer}/instr"
+    # To avoid hardcoding the buildpack version in the path, we use some `find` magic
+    find /cnb/buildpacks/instana.gcp.cloudrun -name core-clr-extension.zip \
+        | head -1 \
+        | xargs -I {} unzip {} -d "${instana_netcore_layer}/instr" 'glibc/*' > /dev/null
+
+    echo '|-> Exporting the .NET Core environment variables'
+    mkdir -p "${instana_netcore_layer}/env"
+    echo -n "${instana_netcore_layer}/instr/glibc/Instana.Tracing.Core.dll" > "${instana_netcore_layer}/env/DOTNET_STARTUP_HOOKS"
+    echo -n '1' > "${instana_netcore_layer}/env/CORECLR_ENABLE_PROFILING"
+    echo -n '{cf0d821e-299b-5307-a3d8-b283c03916dd}' > "${instana_netcore_layer}/env/CORECLR_PROFILER"
+    echo -n "${instana_netcore_layer}/instr/glibc/CoreProfiler.so" > "${instana_netcore_layer}/env/CORECLR_PROFILER_PATH"
+
+    collector_installed=true
+fi
+
+if [ -f pom.xml ] || [ -f settings.gradle ] || (find . -name *.jar | grep .); then
+    echo '|-> Found a JVM application'
+
+    echo '|-> Creating the "jvm" layer'
+
+    readonly instana_jvm_layer="${LAYERS_DIR}/jvm"
+    echo 'launch = true' > "${instana_jvm_layer}.toml"
+
+    echo '|-> Copying over the JVM instrumentation'
+    mkdir -p "${instana_jvm_layer}/instr"
+    # To avoid hardcoding the buildpack version in the path, we use some `find` magic
+    find /cnb/buildpacks/instana.gcp.cloudrun -name standalone-collector-jvm.jar \
+        | head -1 \
+        | xargs -I {} cp {} "${instana_jvm_layer}/instr/" > /dev/null
+
+    echo "|-> Exporting the \"JAVA_TOOL_OPTIONS\" environment variable set to '-javaagent:${instana_jvm_layer}/instr/standalone-collector-jvm.jar'"
+    mkdir -p "${instana_jvm_layer}/env"
+    echo -n "-javaagent:${instana_jvm_layer}/instr/standalone-collector-jvm.jar" > "${instana_jvm_layer}/env/JAVA_TOOL_OPTIONS"
+
+    collector_installed=true
+fi
+
+if [ ${collector_installed} = true ]; then
+    echo '|-! Do not forget to set the "INSTANA_ENDPOINT_URL" and "INSTANA_AGENT_KEY" environment variables in your Cloud Run service revision'
+fi
+
+exit 0

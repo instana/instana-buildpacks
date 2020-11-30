@@ -14,4 +14,4 @@ From the root folder of a test app:
 pack build <image-name> --buildpack from=builder --buildpack containers.instana.io/instana/release/google/buildpack --builder gcr.io/buildpacks/builder
 ```
 
-The `--buildpack from=builder` means "use all the buildpacks in the builder", so that we can jkust "append" the Instana buildpack without overriding the detection process of the other buildpacks.
+The `--buildpack from=builder` means "use all the buildpacks in the builder", so that we can just "append" the Instana buildpack without overriding the detection process of the other buildpacks.

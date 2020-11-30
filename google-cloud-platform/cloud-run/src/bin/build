@@ -17,17 +17,11 @@ if [ -f package.json ]; then
 
     readonly nodejs_instrumentation_archive=$(find /cnb/buildpacks/instana.gcp.cloudrun -name nodejs-instrumentation.tgz | head -1)
 
-    echo "|-> Detected Node.js version ${nodejs_version}"
-
-    # Check if we ship an instrumentation for this node.js version
-    if ! tar -tzf "${nodejs_instrumentation_archive}" -C /workspace "./${nodejs_abi_version}/node_modules" > /dev/null 2>&1; then
-        echo "|-!!! This version of the Instana Google Cloud Run Buildpack does not support this Node.js version"
-        exit 1
-    fi
+    echo "|-> Detected Node.js version ${nodejs_version}; using Node.js instrumentation for the v${nodejs_abi_version} ABI"
 
     echo '|-> Installing the @instana/google-cloud-run module and its dependencies'
 
-    tar -xzf "${nodejs_instrumentation_archive}" -C /workspace "./${nodejs_abi_version}/node_modules" --strip-components=2
+    tar -xzf "${nodejs_instrumentation_archive}" -C /workspace
 
     echo '|-> Creating the "nodejs" layer'
     readonly instana_nodejs_layer="${LAYERS_DIR}/nodejs"

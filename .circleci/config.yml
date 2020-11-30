@@ -72,7 +72,7 @@ jobs:
       - artifactory-fetch-latest-version:
           artifact-id: standalone-collector-jvm
           artifact-type: jar
-          save-to: google-cloud-platform/cloud-run/src/instrumentation/java/standalone-collector-jvm.jar
+          save-to: google-cloud-platform/cloud-run/src/instrumentation/jvm/standalone-collector-jvm.jar
       - artifactory-fetch-latest-version:
           artifact-id: nodejs-cloud-run-dependencies
           artifact-type: tgz

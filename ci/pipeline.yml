@@ -184,11 +184,20 @@ resources:
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
-  # - name: instana-saas-version
-  #   type: instana-version-resource
-  #   source:
-  #     endpoint: ((instana-qa.api_url))
-  #     api_token: ((instana-qa.api_token))
+  - name: instana-saas-version
+    type: instana-version-resource
+    source:
+      endpoint: ((instana-qa.api_url))
+      api_token: ((instana-qa.api_token))
+
+  - name: buildpack-version
+    type: semver
+    icon: alpha
+    source:
+      <<: *instana-buildpack-git-repo-config
+      driver: git
+      file: google-cloud-platform/cloud-run/VERSION
+      commit_message: Bump the buildpack version to %version%
 
 jobs:
 
@@ -216,6 +225,18 @@ jobs:
           instana-qa.api_url: ((instana-qa.api_url))
           instana-qa.api_token: ((instana-qa.api_token))
           gcr-deployment-account-key: ((gcr-deployment-account-key))
+
+  - name: update-buildpack-version-on-saas-update
+    max_in_flight: 1
+    plan:
+      - in_parallel:
+        - get: pipeline-source
+          passed: [self-update]
+        - get: instana-saas-version
+          trigger: true
+      - put: buildpack-version
+        params:
+          bump: minor
 
   - name: build-package-builder-image
     max_in_flight: 1

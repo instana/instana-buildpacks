@@ -31,6 +31,12 @@ resource_types:
     source:
       repository: frodenas/gcs-resource
 
+  - name: slack-notification
+    type: docker-image
+    source:
+      repository: cfcommunity/slack-notification-resource
+      tag: latest
+
 resources:
 
   - name: pipeline-source
@@ -200,7 +206,7 @@ resources:
     source: &semver-version
       <<: *instana-buildpack-git-repo-config
       driver: git
-      branch: main
+      branch: &release-branch main
       file: google-cloud-platform/cloud-run.version
       commit_message: Bump buildpack version to %version%
 
@@ -217,6 +223,11 @@ resources:
       bucket: instana-buildpacks
       json_key: ((project-berlin-tests-gcp-instana-qa))
       regexp: builds/google-cloud-run-buildpack-main-(.*).tgz
+
+  - name: slack-alert-team-agent
+    type: slack-notification
+    source:
+      url: ((slack-webhook-team-agent.webhoook_url))
 
 jobs:
 
@@ -244,6 +255,7 @@ jobs:
           instana-qa.api_url: ((instana-qa.api_url))
           instana-qa.api_token: ((instana-qa.api_token))
           gcr-deployment-account-key: ((gcr-deployment-account-key))
+          slack-webhook-team-agent.webhoook_url: ((slack-webhook-team-agent.webhoook_url))
 
   - name: update-buildpack-version-on-saas-update
     max_in_flight: 1
@@ -633,15 +645,44 @@ jobs:
         params:
           file: google-cloud-run-buildpack-image/google-cloud-run-buildpack-*.tgz
           content_type: application/octet-stream
+    on_failure:
+      put: slack-alert-team-agent
+      params:
+        channel: '#agent-java-underground'
+        text: End-to-end tests for the Google Cloud Run CNB version failed!
 
   - name: release-buildpack
     max_in_flight: 1
     plan:
-      - get: google-cloud-run-buildpack-builds-main
-        trigger: true
-      - get: google-cloud-run-buildpack-main-version
-        params:
-          bump: final
+      - in_parallel:
+        - get: google-cloud-run-buildpack-builds-main
+          trigger: true
+        - get: google-cloud-run-buildpack-main-version
+          params:
+            bump: final
+      - task: ensure-release-only-from-main-pipeline # Avoid that branch pipelines execute release jobs
+        config:
+          platform: linux
+          image_resource: &e2e-image-resource
+            type: docker-image
+            source:
+              repository: busybox
+              tag: latest
+          params:
+            CURRENT_BRANCH: ((branch))
+            RELEASE_BRANCH: *release-branch
+          run: &e2e-run
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                if [ "${CURRENT_BRANCH}" != "${RELEASE_BRANCH}" ]; then
+                  echo "Release jobs are allowed only from the '${RELEASE_BRANCH}'; this pipeline watches the '${CURRENT_BRANCH}' branch"
+                  exit 1;
+                fi
+      - load_var: version_number
+        file: google-cloud-run-buildpack-main-version/version
+        reveal: true
       - task: prep-buildpack-file
         timeout: 5m
         config:
@@ -665,7 +706,7 @@ jobs:
                 tar xzf google-cloud-run-buildpack-builds-main/google-cloud-run-buildpack-*.tgz -C buildpack-build/
       - put: google-cloud-run-buildpack-release-image
         params:
-          load_base: buildpack-build/
+          load: buildpack-build/
           tag_file: google-cloud-run-buildpack-main-version/version
           tag_as_latest: true
         get_params:
@@ -674,3 +715,7 @@ jobs:
         params:
           bump: patch
           pre: alpha
+      - put: slack-alert-team-agent
+        params:
+          channel: '#agent-java-underground'
+          text: New Google Cloud Run CNB version ((.:version_number)) was published!

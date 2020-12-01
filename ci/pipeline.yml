@@ -4,8 +4,8 @@ var:
   instana-buildpack-git-repo-config: &instana-buildpack-git-repo-config
     uri: https://github.com/instana/instana-buildpack.git
     username: ((project-berlin-gh-token))
-    password: &build-branch x-oauth-basic
-    branch: main
+    password: x-oauth-basic
+    branch: ((branch))
 
 resource_types:
 
@@ -34,22 +34,24 @@ resources:
     source:
       <<: *instana-buildpack-git-repo-config
       paths:
-      - ci/
+      - ci/pipeline.yml
 
   - name: google-cloud-run-buildpack-main-source
     type: git
     icon: github
     source:
       <<: *instana-buildpack-git-repo-config
+      branch: &release-branch main # We release only from main!
       paths:
       - google-cloud-platform/cloud-run/
 
-  - name: google-cloud-run-buildpack-prerelease-source
+  - name: google-cloud-run-buildpack-branch-source
     type: git
     icon: github
     source:
       <<: *instana-buildpack-git-repo-config
-      branch: prerelease
+      paths:
+      - google-cloud-platform/cloud-run/
 
   - name: instana-jvm-collector
     type: artifactory-resource
@@ -115,14 +117,6 @@ resources:
     icon: cube
     source:
       repository: &buildpack-snapshot-image-name gcr.io/instana-agent-qa/buildpacks/cloudrun
-      username: _json_key
-      password: ((project-berlin-tests-gcp-instana-qa))
-
-  - name: google-cloud-run-buildpack-prerelease-image
-    type: docker-image
-    icon: cube
-    source:
-      repository: &buildpack-prerelease-image-name gcr.io/instana-agent-qa/buildpacks-prerelease/cloudrun
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -207,21 +201,12 @@ resources:
   - name: google-cloud-run-buildpack-main-version
     type: semver
     icon: alpha
-    source:
+    source: &semver-version
       <<: *instana-buildpack-git-repo-config
       driver: git
+      branch: *release-branch
       file: google-cloud-platform/cloud-run/VERSION
-      commit_message: Open development of buildpack version %version%
-
-  - name: google-cloud-run-buildpack-prerelease-version
-    type: semver
-    icon: alpha
-    source:
-      <<: *instana-buildpack-git-repo-config
-      branch: prerelease
-      driver: git
-      file: google-cloud-platform/cloud-run/VERSION
-      commit_message: Bump the buildpack version to %version%
+      commit_message: Bump buildpack version to %version%
 
 jobs:
 
@@ -233,7 +218,7 @@ jobs:
       - set_pipeline: self
         file: pipeline-source/ci/pipeline.yml
         vars:
-          branch: *build-branch
+          branch: ((branch))
           project-berlin-gh-token: ((project-berlin-gh-token))
           artifacts-instana-io.username: ((artifacts-instana-io.username))
           artifacts-instana-io.password: ((artifacts-instana-io.password))
@@ -301,7 +286,7 @@ jobs:
           passed: [build-package-builder-image]
           params:
             skip_download: true
-        - get: google-cloud-run-buildpack-main-source
+        - get: google-cloud-run-buildpack-branch-source
           trigger: true
         - get: instana-jvm-collector
           trigger: true
@@ -339,7 +324,7 @@ jobs:
               username: _json_key
               password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
-            - name: google-cloud-run-buildpack-main-source
+            - name: google-cloud-run-buildpack-branch-source
             - name: instana-jvm-collector
             - name: instana-netcore-dependencies
             - name: instana-nodejs-instrumentation
@@ -353,20 +338,20 @@ jobs:
             args:
               - -ce
               - |
-                cp instana-jvm-collector/standalone-collector-jvm-*.jar google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/standalone-collector-jvm.jar
-                cp instana-netcore-dependencies/core-clr-extension-*.zip google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/core-clr-extension.zip
-                cp instana-nodejs-instrumentation/nodejs-instrumentation.tgz google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/nodejs-instrumentation.tgz
+                cp instana-jvm-collector/standalone-collector-jvm-*.jar google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/standalone-collector-jvm.jar
+                cp instana-netcore-dependencies/core-clr-extension-*.zip google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/core-clr-extension.zip
+                cp instana-nodejs-instrumentation/nodejs-instrumentation.tgz google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/nodejs-instrumentation.tgz
 
-                # pack package-buildpack buildpack-packages/instana-cloudrun-buildpack.cnb --config google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/package.toml --format file
+                # pack package-buildpack buildpack-packages/instana-cloudrun-buildpack.cnb --config google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/package.toml --format file
 
                 # Delete .gitignore files we keep around
-                find google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
+                find google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
 
                 # start docker
                 source /docker-lib.sh
                 start_docker
 
-                pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/package.toml --format image
+                pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/package.toml --format image
                 docker save -o buildpack-packages/instana-cloudrun-buildpack.image "${IMAGE_NAME}"
       - put: google-cloud-run-buildpack-snapshot-image
         params:
@@ -392,7 +377,7 @@ jobs:
           trigger: true
           params:
             save: true
-        - get: google-cloud-run-buildpack-main-source
+        - get: google-cloud-run-buildpack-branch-source
         - get: nodejs-test-source
         - get: netcore-test-source
         - get: java-mvn-test-source
@@ -618,23 +603,13 @@ jobs:
               SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
               APP_IMAGE_NAME: *test-apps-java-gradle-image-name
             run: *e2e-run
-      - put: google-cloud-run-buildpack-prerelease-image
-        params:
-          load_repository: *buildpack-snapshot-image-name
-          load_file: google-cloud-run-buildpack-snapshot-image/image
-        get_params:
-          skip_download: true
-      - put: google-cloud-run-buildpack-prerelease-source
-        params:
-          repository: google-cloud-run-buildpack-main-source
-          force: true
 
   - name: release-buildpack
     max_in_flight: 1
     plan:
       - in_parallel:
-          - get: google-cloud-run-buildpack-prerelease-image
-          - get: google-cloud-run-buildpack-prerelease-version
+          - get: google-cloud-run-buildpack-main-source
+          - get: google-cloud-run-buildpack-main-version
             trigger: true
             params:
               bump: final

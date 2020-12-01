@@ -36,7 +36,7 @@ resources:
       paths:
       - ci/
 
-  - name: google-cloud-run-buildpack-source
+  - name: google-cloud-run-buildpack-main-source
     type: git
     icon: github
     source:
@@ -44,14 +44,12 @@ resources:
       paths:
       - google-cloud-platform/cloud-run/
 
-  # - name: google-cloud-run-buildpack-version
-  #   type: semver
-  #   icon: alpha
-  #   source:
-  #     <<: *instana-buildpack-git-repo-config
-  #     driver: git
-  #     file: google-cloud-platform/cloud-run/VERSION
-  #     commit_message: Bump the Google Clud Run Buildpack version to %version%
+  - name: google-cloud-run-buildpack-prerelease-source
+    type: git
+    icon: github
+    source:
+      <<: *instana-buildpack-git-repo-config
+      branch: prerelease
 
   - name: instana-jvm-collector
     type: artifactory-resource
@@ -112,13 +110,29 @@ resources:
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
-  - name: cloud-run-buildpack-snapshot-image
+  - name: google-cloud-run-buildpack-snapshot-image
     type: docker-image
     icon: cube
     source:
       repository: &buildpack-snapshot-image-name gcr.io/instana-agent-qa/buildpacks/cloudrun
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+
+  - name: google-cloud-run-buildpack-prerelease-image
+    type: docker-image
+    icon: cube
+    source:
+      repository: &buildpack-prerelease-image-name gcr.io/instana-agent-qa/buildpacks-prerelease/cloudrun
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+
+  - name: google-cloud-run-buildpack-release-image
+    type: docker-image
+    icon: cube
+    source:
+      repository: &buildpack-release-image-name containers.instana.io/instana/release/google/buildpack
+      username: ((containers-instana-io-creds.username))
+      password: ((containers-instana-io-creds.password))
 
   - name: nodejs-test-source
     type: git
@@ -190,11 +204,21 @@ resources:
       endpoint: ((instana-qa.api_url))
       api_token: ((instana-qa.api_token))
 
-  - name: buildpack-version
+  - name: google-cloud-run-buildpack-main-version
     type: semver
     icon: alpha
     source:
       <<: *instana-buildpack-git-repo-config
+      driver: git
+      file: google-cloud-platform/cloud-run/VERSION
+      commit_message: Open development of buildpack version %version%
+
+  - name: google-cloud-run-buildpack-prerelease-version
+    type: semver
+    icon: alpha
+    source:
+      <<: *instana-buildpack-git-repo-config
+      branch: prerelease
       driver: git
       file: google-cloud-platform/cloud-run/VERSION
       commit_message: Bump the buildpack version to %version%
@@ -234,9 +258,10 @@ jobs:
           passed: [self-update]
         - get: instana-saas-version
           trigger: true
-      - put: buildpack-version
+      - put: google-cloud-run-buildpack-main-version
         params:
           bump: minor
+          pre: alpha
 
   - name: build-package-builder-image
     max_in_flight: 1
@@ -276,7 +301,7 @@ jobs:
           passed: [build-package-builder-image]
           params:
             skip_download: true
-        - get: google-cloud-run-buildpack-source
+        - get: google-cloud-run-buildpack-main-source
           trigger: true
         - get: instana-jvm-collector
           trigger: true
@@ -314,7 +339,7 @@ jobs:
               username: _json_key
               password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
-            - name: google-cloud-run-buildpack-source
+            - name: google-cloud-run-buildpack-main-source
             - name: instana-jvm-collector
             - name: instana-netcore-dependencies
             - name: instana-nodejs-instrumentation
@@ -328,22 +353,22 @@ jobs:
             args:
               - -ce
               - |
-                cp instana-jvm-collector/standalone-collector-jvm-*.jar google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/standalone-collector-jvm.jar
-                cp instana-netcore-dependencies/core-clr-extension-*.zip google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/core-clr-extension.zip
-                cp instana-nodejs-instrumentation/nodejs-instrumentation.tgz google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/nodejs-instrumentation.tgz
+                cp instana-jvm-collector/standalone-collector-jvm-*.jar google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/standalone-collector-jvm.jar
+                cp instana-netcore-dependencies/core-clr-extension-*.zip google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/core-clr-extension.zip
+                cp instana-nodejs-instrumentation/nodejs-instrumentation.tgz google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/nodejs-instrumentation.tgz
 
-                # pack package-buildpack buildpack-packages/instana-cloudrun-buildpack.cnb --config google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/package.toml --format file
+                # pack package-buildpack buildpack-packages/instana-cloudrun-buildpack.cnb --config google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/package.toml --format file
 
                 # Delete .gitignore files we keep around
-                find google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
+                find google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
 
                 # start docker
                 source /docker-lib.sh
                 start_docker
 
-                pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/package.toml --format image
+                pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-main-source/google-cloud-platform/cloud-run/package.toml --format image
                 docker save -o buildpack-packages/instana-cloudrun-buildpack.image "${IMAGE_NAME}"
-      - put: cloud-run-buildpack-snapshot-image
+      - put: google-cloud-run-buildpack-snapshot-image
         params:
           load_repository: *cnb-package-builder-image-name
           load_file: buildpack-packages/instana-cloudrun-buildpack.image
@@ -362,11 +387,12 @@ jobs:
           passed: [build-gcr-deployer-image]
           params:
             skip_download: true
-        - get: cloud-run-buildpack-snapshot-image
+        - get: google-cloud-run-buildpack-snapshot-image
           passed: [build-buildpack-snapshot]
           trigger: true
           params:
             save: true
+        - get: google-cloud-run-buildpack-main-source
         - get: nodejs-test-source
         - get: netcore-test-source
         - get: java-mvn-test-source
@@ -384,14 +410,16 @@ jobs:
                 username: _json_key
                 password: ((project-berlin-tests-gcp-instana-qa))
             inputs:
-              - name: cloud-run-buildpack-snapshot-image
+              - name: google-cloud-run-buildpack-snapshot-image
               - name: nodejs-test-source
             outputs:
               - name: nodejs-test-image
-            params:
+            params: &build-test-image-param
               TEST_APP_IMAGE_NAME: *test-apps-nodejs-image-name
               JSON_KEY: ((gcr-deployment-account-key))
-            run:
+              SOURCE_DIRECTORY: nodejs-test-source/google-cloud-platform/cloud-run/test/apps/nodejs
+              IMAGE_FILE: nodejs-test-image/docker.image
+            run: &build-test-image-run
               path: /bin/bash
               args:
                 - -ce
@@ -402,17 +430,17 @@ jobs:
                   docker pull gcr.io/buildpacks/builder
                   docker login -u _json_key -p "${JSON_KEY}" https://gcr.io
 
-                  buildpack_image=$(cat cloud-run-buildpack-snapshot-image/repository)
+                  buildpack_image=$(cat google-cloud-run-buildpack-snapshot-image/repository)
 
                   (
-                    cd nodejs-test-source/google-cloud-platform/cloud-run/test/apps/nodejs \
+                    cd "${SOURCE_DIRECTORY}" \
                     && pack build "${TEST_APP_IMAGE_NAME}" \
                       --buildpack from=builder \
                       --buildpack ${buildpack_image} \
                       --builder gcr.io/buildpacks/builder \
                   )
 
-                  docker save "${TEST_APP_IMAGE_NAME}" -o nodejs-test-image/docker.image
+                  docker save "${TEST_APP_IMAGE_NAME}" -o "${IMAGE_FILE}"
         - task: build-netcore-test-image
           privileged: true
           config:
@@ -425,35 +453,16 @@ jobs:
                 username: _json_key
                 password: ((project-berlin-tests-gcp-instana-qa))
             inputs:
-              - name: cloud-run-buildpack-snapshot-image
+              - name: google-cloud-run-buildpack-snapshot-image
               - name: netcore-test-source
             outputs:
               - name: netcore-test-image
             params:
+              <<: *build-test-image-param
               TEST_APP_IMAGE_NAME: *test-apps-netcore-image-name
-              JSON_KEY: ((gcr-deployment-account-key))
-            run:
-              path: /bin/bash
-              args:
-                - -ce
-                - |
-                  source /docker-lib.sh
-                  start_docker
-
-                  docker pull gcr.io/buildpacks/builder
-                  docker login -u _json_key -p "${JSON_KEY}" https://gcr.io
-
-                  buildpack_image=$(cat cloud-run-buildpack-snapshot-image/repository)
-
-                  (
-                    cd netcore-test-source/google-cloud-platform/cloud-run/test/apps/netcore \
-                    && pack build "${TEST_APP_IMAGE_NAME}" \
-                      --buildpack from=builder \
-                      --buildpack ${buildpack_image} \
-                      --builder gcr.io/buildpacks/builder \
-                  )
-
-                  docker save "${TEST_APP_IMAGE_NAME}" -o netcore-test-image/docker.image
+              SOURCE_DIRECTORY: netcore-test-source/google-cloud-platform/cloud-run/test/apps/netcore
+              IMAGE_FILE: netcore-test-image/docker.image
+            run: *build-test-image-run
         - task: build-java-mvn-test-image
           privileged: true
           config:
@@ -466,35 +475,16 @@ jobs:
                 username: _json_key
                 password: ((project-berlin-tests-gcp-instana-qa))
             inputs:
-              - name: cloud-run-buildpack-snapshot-image
+              - name: google-cloud-run-buildpack-snapshot-image
               - name: java-mvn-test-source
             outputs:
               - name: java-mvn-test-image
             params:
+              <<: *build-test-image-param
               TEST_APP_IMAGE_NAME: *test-apps-java-mvn-image-name
-              JSON_KEY: ((gcr-deployment-account-key))
-            run:
-              path: /bin/bash
-              args:
-                - -ce
-                - |
-                  source /docker-lib.sh
-                  start_docker
-
-                  docker pull gcr.io/buildpacks/builder
-                  docker login -u _json_key -p "${JSON_KEY}" https://gcr.io
-
-                  buildpack_image=$(cat cloud-run-buildpack-snapshot-image/repository)
-
-                  (
-                    cd java-mvn-test-source/google-cloud-platform/cloud-run/test/apps/java/mvn \
-                    && pack build "${TEST_APP_IMAGE_NAME}" \
-                      --buildpack from=builder \
-                      --buildpack ${buildpack_image} \
-                      --builder gcr.io/buildpacks/builder \
-                  )
-
-                  docker save "${TEST_APP_IMAGE_NAME}" -o java-mvn-test-image/docker.image
+              SOURCE_DIRECTORY: java-mvn-test-source/google-cloud-platform/cloud-run/test/apps/java/mvn
+              IMAGE_FILE: java-mvn-test-image/docker.image
+            run: *build-test-image-run
         - task: build-java-gradle-test-image
           privileged: true
           config:
@@ -507,35 +497,16 @@ jobs:
                 username: _json_key
                 password: ((project-berlin-tests-gcp-instana-qa))
             inputs:
-              - name: cloud-run-buildpack-snapshot-image
+              - name: google-cloud-run-buildpack-snapshot-image
               - name: java-gradle-test-source
             outputs:
               - name: java-gradle-test-image
             params:
+              <<: *build-test-image-param
               TEST_APP_IMAGE_NAME: *test-apps-java-gradle-image-name
-              JSON_KEY: ((gcr-deployment-account-key))
-            run:
-              path: /bin/bash
-              args:
-                - -ce
-                - |
-                  source /docker-lib.sh
-                  start_docker
-
-                  docker pull gcr.io/buildpacks/builder
-                  docker login -u _json_key -p "${JSON_KEY}" https://gcr.io
-
-                  buildpack_image=$(cat cloud-run-buildpack-snapshot-image/repository)
-
-                  (
-                    cd java-gradle-test-source/google-cloud-platform/cloud-run/test/apps/java/gradle \
-                    && pack build "${TEST_APP_IMAGE_NAME}" \
-                      --buildpack from=builder \
-                      --buildpack ${buildpack_image} \
-                      --builder gcr.io/buildpacks/builder \
-                  )
-
-                  docker save "${TEST_APP_IMAGE_NAME}" -o java-gradle-test-image/docker.image
+              SOURCE_DIRECTORY: java-gradle-test-source/google-cloud-platform/cloud-run/test/apps/java/gradle
+              IMAGE_FILE: java-gradle-test-image/docker.image
+            run: *build-test-image-run
       - in_parallel:
         - put: netcore-test-image
           params:
@@ -647,3 +618,35 @@ jobs:
               SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
               APP_IMAGE_NAME: *test-apps-java-gradle-image-name
             run: *e2e-run
+      - put: google-cloud-run-buildpack-prerelease-image
+        params:
+          load_repository: *buildpack-snapshot-image-name
+          load_file: google-cloud-run-buildpack-snapshot-image/image
+        get_params:
+          skip_download: true
+      - put: google-cloud-run-buildpack-prerelease-source
+        params:
+          repository: google-cloud-run-buildpack-main-source
+          force: true
+
+  - name: release-buildpack
+    max_in_flight: 1
+    plan:
+      - in_parallel:
+          - get: google-cloud-run-buildpack-prerelease-image
+          - get: google-cloud-run-buildpack-prerelease-version
+            trigger: true
+            params:
+              bump: final
+      - put: google-cloud-run-buildpack-release-image
+        params:
+          load_repository: *buildpack-release-image-name
+          load_file: google-cloud-run-buildpack-prerelease-image/image
+          tag_file: google-cloud-run-buildpack-prerelease-version/version
+          tag_as_latest: true
+        get_params:
+          skip_download: true
+      - put: google-cloud-run-buildpack-main-version
+        params:
+          bump: minor
+          pre: alpha

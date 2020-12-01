@@ -26,6 +26,11 @@ resource_types:
       repository: instana/instana-version-resource
       tag: latest
 
+  - name: gcs-resource
+    type: docker-image
+    source:
+      repository: frodenas/gcs-resource
+
 resources:
 
   - name: pipeline-source
@@ -35,15 +40,6 @@ resources:
       <<: *instana-buildpack-git-repo-config
       paths:
       - ci/pipeline.yml
-
-  - name: google-cloud-run-buildpack-main-source
-    type: git
-    icon: github
-    source:
-      <<: *instana-buildpack-git-repo-config
-      branch: &release-branch main # We release only from main!
-      paths:
-      - google-cloud-platform/cloud-run/
 
   - name: google-cloud-run-buildpack-branch-source
     type: git
@@ -204,9 +200,23 @@ resources:
     source: &semver-version
       <<: *instana-buildpack-git-repo-config
       driver: git
-      branch: *release-branch
-      file: google-cloud-platform/cloud-run/VERSION
+      branch: main
+      file: google-cloud-platform/cloud-run.version
       commit_message: Bump buildpack version to %version%
+
+  - name: google-cloud-run-buildpack-builds-branch
+    type: gcs-resource
+    source:
+      bucket: instana-buildpacks
+      json_key: ((project-berlin-tests-gcp-instana-qa))
+      regexp: builds/google-cloud-run-buildpack-((branch))-(.*).tgz
+
+  - name: google-cloud-run-buildpack-builds-main
+    type: gcs-resource
+    source:
+      bucket: instana-buildpacks
+      json_key: ((project-berlin-tests-gcp-instana-qa))
+      regexp: builds/google-cloud-run-buildpack-main-(.*).tgz
 
 jobs:
 
@@ -239,8 +249,6 @@ jobs:
     max_in_flight: 1
     plan:
       - in_parallel:
-        - get: pipeline-source
-          passed: [self-update]
         - get: instana-saas-version
           trigger: true
       - put: google-cloud-run-buildpack-main-version
@@ -252,8 +260,6 @@ jobs:
     max_in_flight: 1
     plan:
       - in_parallel:
-        - get: pipeline-source
-          passed: [self-update]
         - get: cnb-package-builder-source
           trigger: true
       - put: cnb-package-builder-image
@@ -266,8 +272,6 @@ jobs:
     max_in_flight: 1
     plan:
       - in_parallel:
-        - get: pipeline-source
-          passed: [self-update]
         - get: gcr-deployer-source
           trigger: true
       - put: gcr-deployer-image
@@ -280,8 +284,6 @@ jobs:
     max_in_flight: 1
     plan:
       - in_parallel:
-        - get: pipeline-source
-          passed: [self-update]
         - get: cnb-package-builder-image
           passed: [build-package-builder-image]
           params:
@@ -332,7 +334,7 @@ jobs:
           outputs:
             - name: buildpack-packages
           params:
-            IMAGE_NAME: *cnb-package-builder-image-name
+            IMAGE_NAME: *buildpack-snapshot-image-name
           run:
             path: /bin/bash
             args:
@@ -355,7 +357,7 @@ jobs:
                 docker save -o buildpack-packages/instana-cloudrun-buildpack.image "${IMAGE_NAME}"
       - put: google-cloud-run-buildpack-snapshot-image
         params:
-          load_repository: *cnb-package-builder-image-name
+          load_repository: *buildpack-snapshot-image-name
           load_file: buildpack-packages/instana-cloudrun-buildpack.image
         get_params:
           skip_download: true
@@ -383,6 +385,30 @@ jobs:
         - get: java-mvn-test-source
         - get: java-gradle-test-source
       - in_parallel:
+        - task: prepare-buildpack-image-for-gcs-upload
+          config:
+            platform: linux
+            image_resource:
+              type: docker-image
+              source:
+                repository: gcr.io/instana-agent-qa/cnb/package-builder
+                tag: latest
+                username: _json_key
+                password: ((project-berlin-tests-gcp-instana-qa))
+            inputs:
+              - name: google-cloud-run-buildpack-branch-source
+              - name: google-cloud-run-buildpack-snapshot-image
+            outputs:
+              - name: google-cloud-run-buildpack-image
+            params:
+              BRANCH: ((branch))
+            run:
+              path: /bin/bash
+              args:
+                - -ce
+                - |
+                  short_ref=$(cat google-cloud-run-buildpack-branch-source/.git/short_ref)
+                  tar czf google-cloud-run-buildpack-image/google-cloud-run-buildpack-${BRANCH}-${short_ref}.tgz -C google-cloud-run-buildpack-snapshot-image .
         - task: build-nodejs-test-image
           privileged: true
           config:
@@ -603,25 +629,48 @@ jobs:
               SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
               APP_IMAGE_NAME: *test-apps-java-gradle-image-name
             run: *e2e-run
+      - put: google-cloud-run-buildpack-builds-branch
+        params:
+          file: google-cloud-run-buildpack-image/google-cloud-run-buildpack-*.tgz
+          content_type: application/octet-stream
 
   - name: release-buildpack
     max_in_flight: 1
     plan:
-      - in_parallel:
-          - get: google-cloud-run-buildpack-main-source
-          - get: google-cloud-run-buildpack-main-version
-            trigger: true
-            params:
-              bump: final
+      - get: google-cloud-run-buildpack-builds-main
+        trigger: true
+      - get: google-cloud-run-buildpack-main-version
+        params:
+          bump: final
+      - task: prep-buildpack-file
+        timeout: 5m
+        config:
+          platform: linux
+          image_resource: &e2e-image-resource
+            type: docker-image
+            source:
+              repository: *gcr-deployer-image-name
+              tag: latest
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: google-cloud-run-buildpack-builds-main
+          outputs: 
+            - name: buildpack-build
+          run: &e2e-run
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                tar xzf google-cloud-run-buildpack-builds-main/google-cloud-run-buildpack-*.tgz -C buildpack-build/
       - put: google-cloud-run-buildpack-release-image
         params:
-          load_repository: *buildpack-release-image-name
-          load_file: google-cloud-run-buildpack-prerelease-image/image
-          tag_file: google-cloud-run-buildpack-prerelease-version/version
+          load_base: buildpack-build/
+          tag_file: google-cloud-run-buildpack-main-version/version
           tag_as_latest: true
         get_params:
           skip_download: true
       - put: google-cloud-run-buildpack-main-version
         params:
-          bump: minor
+          bump: patch
           pre: alpha

@@ -18,7 +18,7 @@ resource_types:
   - name: npm-resource
     type: docker-image
     source:
-      repository: idahobean/npm-resource
+      repository: timotto/concourse-npm-resource
 
   - name: instana-version-resource
     type: docker-image
@@ -79,7 +79,7 @@ resources:
     type: npm-resource
     icon: cube-unfolded
     source:
-      package_name: '@instana/google-cloud-run'
+      package: '@instana/google-cloud-run'
       registry: https://registry.npmjs.org/
 
   - name: cnb-package-builder-source
@@ -308,6 +308,15 @@ jobs:
           trigger: true
         - get: instana-gcr-npm-package
           trigger: true
+      - load_var: jvm-collector-version
+        file: instana-jvm-collector/version
+        reveal: true
+      - load_var: netcore-dependencies-version
+        file: instana-netcore-dependencies/version
+        reveal: true
+      - load_var: gcr-package-version
+        file: instana-gcr-npm-package/version
+        reveal: true
       - task: prepare-nodejs-instrumentation
         config:
           platform: linux
@@ -318,13 +327,15 @@ jobs:
               tag: 15-buster
           outputs:
             - name: instana-nodejs-instrumentation
+          params:
+            PACKAGE_VERSION: ((.:gcr-package-version))
           run:
             path: /bin/bash
             args:
               - -ce
               - |
                 mkdir nodejs-instrumentation
-                (cd nodejs-instrumentation && npm install @instana/google-cloud-run)
+                (cd nodejs-instrumentation && npm install @instana/google-cloud-run@${PACKAGE_VERSION})
                 tar czf instana-nodejs-instrumentation/nodejs-instrumentation.tgz -C nodejs-instrumentation .
       - task: create-buildpack-packages
         privileged: true

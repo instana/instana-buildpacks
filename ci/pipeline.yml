@@ -279,6 +279,7 @@ jobs:
         - get: git-manipulator-image
           passed: [build-git-manipulator-image]
       - task: update-npm-package-version
+        attempts: 3
         config:
           platform: linux
           image_resource:
@@ -300,12 +301,14 @@ jobs:
               - |
                 NPM_PACKAGE_VERSION=$(cat instana-gcr-npm-package/version)
 
-                echo "${NPM_PACKAGE_VERSION}" > google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
-
                 cd google-cloud-run-buildpack-source
 
                 git config --global user.name "Stan"
                 git config --global user.email "stan@instana.com"
+
+                git pull origin ((branch))
+
+                echo "${NPM_PACKAGE_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
 
                 git commit -am "Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}"
       - put: google-cloud-run-buildpack-source
@@ -322,6 +325,7 @@ jobs:
         - get: git-manipulator-image
           passed: [build-git-manipulator-image]
       - task: update-netcore-dependencies-version
+        attempts: 3
         config:
           platform: linux
           image_resource:
@@ -343,12 +347,14 @@ jobs:
               - |
                 NETCORE_DEPENDENCIES_VERSION=$(cat instana-netcore-dependencies/version)
 
-                echo "${NETCORE_DEPENDENCIES_VERSION}" > google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
-
                 cd google-cloud-run-buildpack-source
 
                 git config --global user.name "Stan"
                 git config --global user.email "stan@instana.com"
+
+                git pull origin ((branch))
+
+                echo "${NETCORE_DEPENDENCIES_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
 
                 git commit -am "Update .NET Core dependencies for Google Cloud Run to ${NETCORE_DEPENDENCIES_VERSION}"
       - put: google-cloud-run-buildpack-source
@@ -365,6 +371,7 @@ jobs:
         - get: git-manipulator-image
           passed: [build-git-manipulator-image]
       - task: update-java-collector-version
+        attempts: 3
         config:
           platform: linux
           image_resource:
@@ -386,12 +393,14 @@ jobs:
               - |
                 JVM_COLLECTOR_VERSION=$(cat instana-jvm-collector/version)
 
-                echo "${JVM_COLLECTOR_VERSION}" > google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
-
                 cd google-cloud-run-buildpack-source
 
                 git config --global user.name "Stan"
                 git config --global user.email "stan@instana.com"
+
+                git pull origin ((branch))
+
+                echo "${JVM_COLLECTOR_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
 
                 git commit -am "Update the JVM collector for Google Cloud Run to ${JVM_COLLECTOR_VERSION}"
       - put: google-cloud-run-buildpack-source

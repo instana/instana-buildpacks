@@ -18,7 +18,7 @@ resource_types:
   - name: npm-resource
     type: docker-image
     source:
-      repository: idahobean/npm-resource
+      repository: timotto/concourse-npm-resource
 
   - name: instana-version-resource
     type: docker-image
@@ -47,7 +47,7 @@ resources:
       paths:
       - ci/pipeline.yml
 
-  - name: google-cloud-run-buildpack-branch-source
+  - name: google-cloud-run-buildpack-source
     type: git
     icon: github
     source:
@@ -79,8 +79,10 @@ resources:
     type: npm-resource
     icon: cube-unfolded
     source:
-      package_name: '@instana/google-cloud-run'
-      registry: https://registry.npmjs.org/
+      scope: instana
+      package: google-cloud-run
+      registry:
+        uri: https://registry.npmjs.org/
 
   - name: cnb-package-builder-source
     type: git
@@ -95,6 +97,22 @@ resources:
     icon: cube
     source:
       repository: &cnb-package-builder-image-name gcr.io/instana-agent-qa/cnb/package-builder
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+
+  - name: git-manipulator-source
+    type: git
+    icon: github
+    source:
+      <<: *instana-buildpack-git-repo-config
+      paths:
+      - &git-manipulator-source ci/images/git-manipulator
+
+  - name: git-manipulator-image
+    type: docker-image
+    icon: cube
+    source:
+      repository: &git-manipulator-image-name gcr.io/instana-agent-qa/cnb/git-manipulator
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -200,29 +218,21 @@ resources:
       endpoint: ((instana-qa.api_url))
       api_token: ((instana-qa.api_token))
 
-  - name: google-cloud-run-buildpack-main-version
+  - name: google-cloud-run-buildpack-version
     type: semver
     icon: alpha
     source: &semver-version
       <<: *instana-buildpack-git-repo-config
       driver: git
-      branch: &release-branch main
       file: google-cloud-platform/cloud-run.version
       commit_message: Bump buildpack version to %version%
 
-  - name: google-cloud-run-buildpack-builds-branch
+  - name: google-cloud-run-buildpack-build
     type: gcs-resource
     source:
       bucket: instana-buildpacks
       json_key: ((project-berlin-tests-gcp-instana-qa))
       regexp: builds/google-cloud-run-buildpack-((branch))-(.*).tgz
-
-  - name: google-cloud-run-buildpack-builds-main
-    type: gcs-resource
-    source:
-      bucket: instana-buildpacks
-      json_key: ((project-berlin-tests-gcp-instana-qa))
-      regexp: builds/google-cloud-run-buildpack-main-(.*).tgz
 
   - name: slack-alert-team-agent
     type: slack-notification
@@ -257,13 +267,143 @@ jobs:
           gcr-deployment-account-key: ((gcr-deployment-account-key))
           slack-webhook-team-agent.webhoook_url: ((slack-webhook-team-agent.webhoook_url))
 
-  - name: update-buildpack-version-on-saas-update
+  - name: update-npm-package-version-on-npm-update
     max_in_flight: 1
     plan:
       - in_parallel:
-        - get: instana-saas-version
+        - get: instana-gcr-npm-package
           trigger: true
-      - put: google-cloud-run-buildpack-main-version
+          params:
+            skip_download: true
+        - get: google-cloud-run-buildpack-source
+        - get: git-manipulator-image
+          passed: [build-git-manipulator-image]
+      - task: update-npm-package-version
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: *git-manipulator-image-name
+              tag: latest
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: google-cloud-run-buildpack-source
+            - name: instana-gcr-npm-package
+          outputs:
+            - name: google-cloud-run-buildpack-source
+          run:
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                NPM_PACKAGE_VERSION=$(cat instana-gcr-npm-package/version)
+
+                echo "${NPM_PACKAGE_VERSION}" > google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
+
+                cd google-cloud-run-buildpack-source
+
+                git config --global user.name "Stan"
+                git config --global user.email "stan@instana.com"
+
+                git commit -am "Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}"
+      - put: google-cloud-run-buildpack-source
+        params:
+          repository: google-cloud-run-buildpack-source
+
+  - name: update-netcore-dependencies-version-on-artifactory-update
+    max_in_flight: 1
+    plan:
+      - in_parallel:
+        - get: instana-netcore-dependencies
+          trigger: true
+        - get: google-cloud-run-buildpack-source
+        - get: git-manipulator-image
+          passed: [build-git-manipulator-image]
+      - task: update-netcore-dependencies-version
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: *git-manipulator-image-name
+              tag: latest
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: google-cloud-run-buildpack-source
+            - name: instana-netcore-dependencies
+          outputs:
+            - name: google-cloud-run-buildpack-source
+          run:
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                NETCORE_DEPENDENCIES_VERSION=$(cat instana-netcore-dependencies/version)
+
+                echo "${NETCORE_DEPENDENCIES_VERSION}" > google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
+
+                cd google-cloud-run-buildpack-source
+
+                git config --global user.name "Stan"
+                git config --global user.email "stan@instana.com"
+
+                git commit -am "Update .NET Core dependencies for Google Cloud Run to ${NETCORE_DEPENDENCIES_VERSION}"
+      - put: google-cloud-run-buildpack-source
+        params:
+          repository: google-cloud-run-buildpack-source
+
+  - name: update-jvm-collector-version-on-artifactory-update
+    max_in_flight: 1
+    plan:
+      - in_parallel:
+        - get: instana-jvm-collector
+          trigger: true
+        - get: google-cloud-run-buildpack-source
+        - get: git-manipulator-image
+          passed: [build-git-manipulator-image]
+      - task: update-java-collector-version
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: *git-manipulator-image-name
+              tag: latest
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: google-cloud-run-buildpack-source
+            - name: instana-jvm-collector
+          outputs:
+            - name: google-cloud-run-buildpack-source
+          run:
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                JVM_COLLECTOR_VERSION=$(cat instana-jvm-collector/version)
+
+                echo "${JVM_COLLECTOR_VERSION}" > google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
+
+                cd google-cloud-run-buildpack-source
+
+                git config --global user.name "Stan"
+                git config --global user.email "stan@instana.com"
+
+                git commit -am "Update the JVM collector for Google Cloud Run to ${JVM_COLLECTOR_VERSION}"
+      - put: google-cloud-run-buildpack-source
+        params:
+          repository: google-cloud-run-buildpack-source
+
+  - name: update-buildpack-version-on-saas-update
+    max_in_flight: 1
+    plan:
+      - get: instana-saas-version
+        trigger: true
+      - put: google-cloud-run-buildpack-version
         params:
           bump: minor
           pre: alpha
@@ -277,6 +417,18 @@ jobs:
       - put: cnb-package-builder-image
         params:
           build: cnb-package-builder-source/ci/images/cnb-packager
+        get_params:
+          skip_download: true
+
+  - name: build-git-manipulator-image
+    max_in_flight: 1
+    plan:
+      - in_parallel:
+        - get: git-manipulator-source
+          trigger: true
+      - put: git-manipulator-image
+        params:
+          build: git-manipulator-source/ci/images/git-manipulator
         get_params:
           skip_download: true
 
@@ -295,19 +447,25 @@ jobs:
   - name: build-buildpack-snapshot
     max_in_flight: 1
     plan:
+      - get: google-cloud-run-buildpack-source
+        trigger: true
+      - get: cnb-package-builder-image
+        passed: [build-package-builder-image]
+        params:
+          skip_download: true
       - in_parallel:
-        - get: cnb-package-builder-image
-          passed: [build-package-builder-image]
+        - get: instana-gcr-npm-package
+          passed: [update-npm-package-version-on-npm-update]
           params:
             skip_download: true
-        - get: google-cloud-run-buildpack-branch-source
-          trigger: true
         - get: instana-jvm-collector
-          trigger: true
+          passed: [update-jvm-collector-version-on-artifactory-update]
+          params:
+            version_file: google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
         - get: instana-netcore-dependencies
-          trigger: true
-        - get: instana-gcr-npm-package
-          trigger: true
+          passed: [update-netcore-dependencies-version-on-artifactory-update]
+          params:
+            version_file: google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
       - task: prepare-nodejs-instrumentation
         config:
           platform: linux
@@ -316,6 +474,8 @@ jobs:
             source:
               repository: node
               tag: 15-buster
+          inputs:
+            - name: google-cloud-run-buildpack-source
           outputs:
             - name: instana-nodejs-instrumentation
           run:
@@ -324,7 +484,7 @@ jobs:
               - -ce
               - |
                 mkdir nodejs-instrumentation
-                (cd nodejs-instrumentation && npm install @instana/google-cloud-run)
+                (cd nodejs-instrumentation && npm install @instana/google-cloud-run@$(cat google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION))
                 tar czf instana-nodejs-instrumentation/nodejs-instrumentation.tgz -C nodejs-instrumentation .
       - task: create-buildpack-packages
         privileged: true
@@ -338,7 +498,7 @@ jobs:
               username: _json_key
               password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
-            - name: google-cloud-run-buildpack-branch-source
+            - name: google-cloud-run-buildpack-source
             - name: instana-jvm-collector
             - name: instana-netcore-dependencies
             - name: instana-nodejs-instrumentation
@@ -352,20 +512,20 @@ jobs:
             args:
               - -ce
               - |
-                cp instana-jvm-collector/standalone-collector-jvm-*.jar google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/standalone-collector-jvm.jar
-                cp instana-netcore-dependencies/core-clr-extension-*.zip google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/core-clr-extension.zip
-                cp instana-nodejs-instrumentation/nodejs-instrumentation.tgz google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/nodejs-instrumentation.tgz
+                cp instana-jvm-collector/standalone-collector-jvm-*.jar google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/jvm/standalone-collector-jvm.jar
+                cp instana-netcore-dependencies/core-clr-extension-*.zip google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/netcore/core-clr-extension.zip
+                cp instana-nodejs-instrumentation/nodejs-instrumentation.tgz google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/nodejs-instrumentation.tgz
 
-                # pack package-buildpack buildpack-packages/instana-cloudrun-buildpack.cnb --config google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/package.toml --format file
+                # pack package-buildpack buildpack-packages/instana-cloudrun-buildpack.cnb --config google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/package.toml --format file
 
                 # Delete .gitignore files we keep around
-                find google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
+                find google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
 
                 # start docker
                 source /docker-lib.sh
                 start_docker
 
-                pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-branch-source/google-cloud-platform/cloud-run/package.toml --format image
+                pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/package.toml --format image
                 docker save -o buildpack-packages/instana-cloudrun-buildpack.image "${IMAGE_NAME}"
       - put: google-cloud-run-buildpack-snapshot-image
         params:
@@ -391,7 +551,7 @@ jobs:
           trigger: true
           params:
             save: true
-        - get: google-cloud-run-buildpack-branch-source
+        - get: google-cloud-run-buildpack-source
         - get: nodejs-test-source
         - get: netcore-test-source
         - get: java-mvn-test-source
@@ -408,7 +568,7 @@ jobs:
                 username: _json_key
                 password: ((project-berlin-tests-gcp-instana-qa))
             inputs:
-              - name: google-cloud-run-buildpack-branch-source
+              - name: google-cloud-run-buildpack-source
               - name: google-cloud-run-buildpack-snapshot-image
             outputs:
               - name: google-cloud-run-buildpack-image
@@ -419,7 +579,7 @@ jobs:
               args:
                 - -ce
                 - |
-                  short_ref=$(cat google-cloud-run-buildpack-branch-source/.git/short_ref)
+                  short_ref=$(cat google-cloud-run-buildpack-source/.git/short_ref)
                   tar czf google-cloud-run-buildpack-image/google-cloud-run-buildpack-${BRANCH}-${short_ref}.tgz -C google-cloud-run-buildpack-snapshot-image .
         - task: build-nodejs-test-image
           privileged: true
@@ -641,7 +801,7 @@ jobs:
               SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
               APP_IMAGE_NAME: *test-apps-java-gradle-image-name
             run: *e2e-run
-      - put: google-cloud-run-buildpack-builds-branch
+      - put: google-cloud-run-buildpack-build
         params:
           file: google-cloud-run-buildpack-image/google-cloud-run-buildpack-*.tgz
           content_type: application/octet-stream
@@ -655,13 +815,13 @@ jobs:
     max_in_flight: 1
     plan:
       - in_parallel:
-        - get: google-cloud-run-buildpack-builds-main
+        - get: google-cloud-run-buildpack-build
           trigger: true
-        - get: google-cloud-run-buildpack-main-version
+        - get: google-cloud-run-buildpack-version
           params:
             bump: final
-      - task: ensure-release-only-from-main-pipeline # Avoid that branch pipelines execute release jobs
-        config:
+      - task: ensure-only-from-main-pipeline # Avoid that branch pipelines execute release jobs
+        config: &ensure-only-from-main-pipeline-config
           platform: linux
           image_resource: &e2e-image-resource
             type: docker-image
@@ -670,18 +830,18 @@ jobs:
               tag: latest
           params:
             CURRENT_BRANCH: ((branch))
-            RELEASE_BRANCH: *release-branch
+            RELEASE_BRANCH: main
           run: &e2e-run
-            path: /bin/bash
+            path: /bin/sh
             args:
               - -ce
               - |
-                if [ "${CURRENT_BRANCH}" != "${RELEASE_BRANCH}" ]; then
-                  echo "Release jobs are allowed only from the '${RELEASE_BRANCH}'; this pipeline watches the '${CURRENT_BRANCH}' branch"
-                  exit 1;
-                fi
-      - load_var: version_number
-        file: google-cloud-run-buildpack-main-version/version
+                [[ "${CURRENT_BRANCH}" = "${RELEASE_BRANCH}" ]] && exit 0
+
+                echo "Release jobs are allowed only from the '${RELEASE_BRANCH}'; this pipeline watches the '${CURRENT_BRANCH}' branch"
+                exit 1;
+      - load_var: version-number
+        file: google-cloud-run-buildpack-version/version
         reveal: true
       - task: prep-buildpack-file
         timeout: 5m
@@ -695,27 +855,27 @@ jobs:
               username: _json_key
               password: ((project-berlin-tests-gcp-instana-qa))
           inputs:
-            - name: google-cloud-run-buildpack-builds-main
+            - name: google-cloud-run-buildpack-build
           outputs: 
             - name: buildpack-build
-          run: &e2e-run
+          run:
             path: /bin/bash
             args:
               - -ce
               - |
-                tar xzf google-cloud-run-buildpack-builds-main/google-cloud-run-buildpack-*.tgz -C buildpack-build/
+                tar xzf google-cloud-run-buildpack-build/google-cloud-run-buildpack-*.tgz -C buildpack-build/
       - put: google-cloud-run-buildpack-release-image
         params:
           load: buildpack-build/
-          tag_file: google-cloud-run-buildpack-main-version/version
+          tag_file: google-cloud-run-buildpack-version/version
           tag_as_latest: true
         get_params:
           skip_download: true
-      - put: google-cloud-run-buildpack-main-version
+      - put: google-cloud-run-buildpack-version
         params:
           bump: patch
           pre: alpha
       - put: slack-alert-team-agent
         params:
           channel: '#agent-java-underground'
-          text: New Google Cloud Run CNB version ((.:version_number)) was published!
+          text: New Google Cloud Run CNB version ((.:version-number)) was published!

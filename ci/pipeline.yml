@@ -309,7 +309,7 @@ jobs:
 
                 git pull origin ((branch))
 
-                echo "${NPM_PACKAGE_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
+                echo -n "${NPM_PACKAGE_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
 
                 git commit -am "Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}"
       - put: google-cloud-run-buildpack-source

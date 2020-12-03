@@ -225,6 +225,7 @@ resources:
       <<: *instana-buildpack-git-repo-config
       driver: git
       file: google-cloud-platform/cloud-run.version
+      git_user: Stan <stan@instana.com>
       commit_message: Bump buildpack version to %version%
 
   - name: google-cloud-run-buildpack-build

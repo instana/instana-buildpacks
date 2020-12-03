@@ -816,6 +816,7 @@ jobs:
     plan:
       - in_parallel:
         - get: google-cloud-run-buildpack-build
+          passed: [end-to-end-tests]
           trigger: true
         - get: google-cloud-run-buildpack-version
           params:

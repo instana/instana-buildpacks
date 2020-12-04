@@ -904,6 +904,9 @@ jobs:
                 fi
 
                 git --no-pager log ${last_tag}..HEAD --format=%s | grep '\[changelog\]' | cut -c13- > .git/changelog
+
+                echo '=== CHANGELOG ==='
+                cat .git/changelog
       - put: google-cloud-run-buildpack-version # Commit release version for the commit to tag
         params:
           bump: final

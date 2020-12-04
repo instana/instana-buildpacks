@@ -235,6 +235,13 @@ resources:
       json_key: ((project-berlin-tests-gcp-instana-qa))
       regexp: builds/google-cloud-run-buildpack-((branch))-(.*).tgz
 
+  - name: google-cloud-run-buildpack-github-release
+    type: github-release
+    source:
+      owner: instana
+      repository: instana-buildpacks
+      access_token: ((project-berlin-gh-token))
+
   - name: slack-alert-team-agent
     type: slack-notification
     source:
@@ -311,7 +318,7 @@ jobs:
 
                 echo -n "${NPM_PACKAGE_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
 
-                git commit -am "Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}"
+                git commit -am "[changelog] Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}"
       - put: google-cloud-run-buildpack-source
         params:
           repository: google-cloud-run-buildpack-source
@@ -357,7 +364,7 @@ jobs:
 
                 echo "${NETCORE_DEPENDENCIES_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
 
-                git commit -am "Update .NET Core dependencies for Google Cloud Run to ${NETCORE_DEPENDENCIES_VERSION}"
+                git commit -am "[changelog] Update .NET Core dependencies for Google Cloud Run to ${NETCORE_DEPENDENCIES_VERSION}"
       - put: google-cloud-run-buildpack-source
         params:
           repository: google-cloud-run-buildpack-source
@@ -403,7 +410,7 @@ jobs:
 
                 echo "${JVM_COLLECTOR_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
 
-                git commit -am "Update the JVM collector for Google Cloud Run to ${JVM_COLLECTOR_VERSION}"
+                git commit -am "[changelog] Update the JVM collector for Google Cloud Run to ${JVM_COLLECTOR_VERSION}"
       - put: google-cloud-run-buildpack-source
         params:
           repository: google-cloud-run-buildpack-source
@@ -828,6 +835,7 @@ jobs:
         - get: google-cloud-run-buildpack-build
           passed: [end-to-end-tests]
           trigger: true
+        - get: google-cloud-run-buildpack-source
         - get: google-cloud-run-buildpack-version
           params:
             bump: final
@@ -882,10 +890,10 @@ jobs:
           tag_as_latest: true
         get_params:
           skip_download: true
-      - put: google-cloud-run-buildpack-version
+      - put: google-cloud-run-buildpack-version # Bump release branch to the next devel
         params:
           bump: patch
-          pre: alpha
+          pre: dev
       - put: slack-alert-team-agent
         params:
           channel: '#agent-java-underground'

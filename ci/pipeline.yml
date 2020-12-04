@@ -292,7 +292,7 @@ jobs:
           platform: linux
           image_resource:
             type: docker-image
-            source:
+            source: &git-manipulator-image
               repository: *git-manipulator-image-name
               tag: latest
               username: _json_key
@@ -338,11 +338,7 @@ jobs:
           platform: linux
           image_resource:
             type: docker-image
-            source:
-              repository: *git-manipulator-image-name
-              tag: latest
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+            source: *git-manipulator-image
           inputs:
             - name: google-cloud-run-buildpack-source
             - name: instana-netcore-dependencies
@@ -384,11 +380,7 @@ jobs:
           platform: linux
           image_resource:
             type: docker-image
-            source:
-              repository: *git-manipulator-image-name
-              tag: latest
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+            source: *git-manipulator-image
           inputs:
             - name: google-cloud-run-buildpack-source
             - name: instana-jvm-collector
@@ -509,8 +501,8 @@ jobs:
           platform: linux
           image_resource:
             type: docker-image
-            source:
-              repository: gcr.io/instana-agent-qa/cnb/package-builder # This image provides a Docker-in-Docker setup
+            source: &package-builder-image
+              repository: gcr.io/instana-agent-qa/cnb/package-builder
               tag: latest
               username: _json_key
               password: ((project-berlin-tests-gcp-instana-qa))
@@ -579,11 +571,7 @@ jobs:
             platform: linux
             image_resource:
               type: docker-image
-              source:
-                repository: gcr.io/instana-agent-qa/cnb/package-builder
-                tag: latest
-                username: _json_key
-                password: ((project-berlin-tests-gcp-instana-qa))
+              source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-source
               - name: google-cloud-run-buildpack-snapshot-image
@@ -647,11 +635,7 @@ jobs:
             platform: linux
             image_resource:
               type: docker-image
-              source:
-                repository: gcr.io/instana-agent-qa/cnb/package-builder
-                tag: latest
-                username: _json_key
-                password: ((project-berlin-tests-gcp-instana-qa))
+              source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-snapshot-image
               - name: netcore-test-source
@@ -669,11 +653,7 @@ jobs:
             platform: linux
             image_resource:
               type: docker-image
-              source:
-                repository: gcr.io/instana-agent-qa/cnb/package-builder
-                tag: latest
-                username: _json_key
-                password: ((project-berlin-tests-gcp-instana-qa))
+              source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-snapshot-image
               - name: java-mvn-test-source
@@ -691,11 +671,7 @@ jobs:
             platform: linux
             image_resource:
               type: docker-image
-              source:
-                repository: gcr.io/instana-agent-qa/cnb/package-builder
-                tag: latest
-                username: _json_key
-                password: ((project-berlin-tests-gcp-instana-qa))
+              source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-snapshot-image
               - name: java-gradle-test-source
@@ -739,7 +715,7 @@ jobs:
             platform: linux
             image_resource: &e2e-image-resource
               type: docker-image
-              source:
+              source: &gcr-deployer-image
                 repository: *gcr-deployer-image-name
                 tag: latest
                 username: _json_key
@@ -868,11 +844,7 @@ jobs:
           platform: linux
           image_resource:
             type: docker-image
-            source:
-              repository: *gcr-deployer-image-name
-              tag: latest
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
+            source: *gcr-deployer-image
           inputs:
             - name: google-cloud-run-buildpack-build
           outputs: 
@@ -883,6 +855,39 @@ jobs:
               - -ce
               - |
                 tar xzf google-cloud-run-buildpack-build/google-cloud-run-buildpack-*.tgz -C buildpack-build/
+      - task: prepare-changelog
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source: *git-manipulator-image
+          inputs:
+            - name: google-cloud-run-buildpack-source
+          outputs:
+            - name: google-cloud-run-buildpack-source
+          run:
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                cd google-cloud-run-buildpack-source
+
+                last_tag=$(git rev-list --tags --max-count=1)
+
+                if [ -z "${last_tag}" ]; then
+                  echo "No previous tags found, cannot calculate changelog"
+                  exit 1
+                fi
+
+                git --no-pager log ${last_tag}..HEAD --format=%s | grep '\[changelog\]' | cut -c13- > .git/changelog
+      - put: google-cloud-run-buildpack-version # Commit release version for the commit to tag
+        params:
+          bump: final
+      - put: google-cloud-run-buildpack-github-release
+        params:
+          name: google-cloud-run-buildpack-version/version
+          tag: google-cloud-run-buildpack-version/version
+          body: google-cloud-run-buildpack-source/.git/changelog
       - put: google-cloud-run-buildpack-release-image
         params:
           load: buildpack-build/

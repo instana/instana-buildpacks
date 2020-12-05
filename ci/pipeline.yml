@@ -907,6 +907,9 @@ jobs:
 
                 echo '=== CHANGELOG ==='
                 cat .git/changelog
+      - load_var: changelog
+        file: google-cloud-run-buildpack-source/.git/changelog
+        reveal: true
       - put: google-cloud-run-buildpack-version # Commit release version for the commit to tag
         params:
           bump: final
@@ -929,4 +932,4 @@ jobs:
       - put: slack-alert-team-agent
         params:
           channel: '#agent-java-underground'
-          text: New Google Cloud Run CNB version ((.:version-number)) was published!
+          text: New Google Cloud Run CNB version ((.:version-number)) was published:\n((.:changelog))

@@ -827,7 +827,7 @@ jobs:
           params:
             CURRENT_BRANCH: ((branch))
             RELEASE_BRANCH: main
-          run: &e2e-run
+          run:
             path: /bin/sh
             args:
               - -ce
@@ -849,7 +849,7 @@ jobs:
           inputs:
             - name: google-cloud-run-buildpack-build
             - name: google-cloud-run-buildpack-source
-          run: &e2e-run
+          run:
             path: /bin/bash
             args:
               - -ce

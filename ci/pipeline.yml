@@ -319,7 +319,7 @@ jobs:
 
                 echo -n "${NPM_PACKAGE_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
 
-                git commit -am "[changelog] Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}"
+                git commit -am "[changelog] Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}" || true
       - put: google-cloud-run-buildpack-source
         params:
           repository: google-cloud-run-buildpack-source
@@ -361,7 +361,7 @@ jobs:
 
                 echo "${NETCORE_DEPENDENCIES_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
 
-                git commit -am "[changelog] Update .NET Core dependencies for Google Cloud Run to ${NETCORE_DEPENDENCIES_VERSION}"
+                git commit -am "[changelog] Update .NET Core dependencies for Google Cloud Run to ${NETCORE_DEPENDENCIES_VERSION}" || true
       - put: google-cloud-run-buildpack-source
         params:
           repository: google-cloud-run-buildpack-source
@@ -403,7 +403,7 @@ jobs:
 
                 echo "${JVM_COLLECTOR_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
 
-                git commit -am "[changelog] Update the JVM collector for Google Cloud Run to ${JVM_COLLECTOR_VERSION}"
+                git commit -am "[changelog] Update the JVM collector for Google Cloud Run to ${JVM_COLLECTOR_VERSION}" || true
       - put: google-cloud-run-buildpack-source
         params:
           repository: google-cloud-run-buildpack-source
@@ -907,6 +907,9 @@ jobs:
 
                 echo '=== CHANGELOG ==='
                 cat .git/changelog
+      - load_var: changelog
+        file: google-cloud-run-buildpack-source/.git/changelog
+        reveal: true
       - put: google-cloud-run-buildpack-version # Commit release version for the commit to tag
         params:
           bump: final
@@ -929,4 +932,4 @@ jobs:
       - put: slack-alert-team-agent
         params:
           channel: '#agent-java-underground'
-          text: New Google Cloud Run CNB version ((.:version-number)) was published!
+          text: New Google Cloud Run CNB version ((.:version-number)) was published:\n((.:changelog))

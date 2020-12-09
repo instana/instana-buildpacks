@@ -426,6 +426,7 @@ jobs:
       - task: build-cnb-package-builder-image
         config:
           platform: linux
+          privileged: true
           image_resource:
             type: registry-image
             source:
@@ -453,6 +454,7 @@ jobs:
       - task: build-git-manipulator-image
         config:
           platform: linux
+          privileged: true
           image_resource:
             type: registry-image
             source:
@@ -480,6 +482,7 @@ jobs:
       - task: build-gcr-deployer-image
         config:
           platform: linux
+          privileged: true
           image_resource:
             type: registry-image
             source:

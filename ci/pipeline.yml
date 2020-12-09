@@ -443,8 +443,7 @@ jobs:
             path: build
       - put: cnb-package-builder-image
         params:
-          params:
-            image: image/image.tar
+          image: image/image.tar
 
   - name: build-git-manipulator-image
     max_in_flight: 1
@@ -471,8 +470,7 @@ jobs:
             path: build
       - put: git-manipulator-image
         params:
-          params:
-            image: image/image.tar
+          image: image/image.tar
 
   - name: build-gcr-deployer-image
     max_in_flight: 1
@@ -499,8 +497,7 @@ jobs:
             path: build
       - put: gcr-deployer-image
         params:
-          params:
-            image: image/image.tar
+          image: image/image.tar
 
   - name: build-buildpack-snapshot
     max_in_flight: 1

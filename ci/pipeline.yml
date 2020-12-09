@@ -728,15 +728,23 @@ jobs:
         - put: netcore-test-image
           params:
             image: netcore-test-image/docker.image
+          get_params:
+            skip_download: true
         - put: nodejs-test-image
           params:
             image: nodejs-test-image/docker.image
+          get_params:
+            skip_download: true
         - put: java-mvn-test-image
           params:
             image: java-mvn-test-image/docker.image
+          get_params:
+            skip_download: true
         - put: java-gradle-test-image
           params:
             image: java-gradle-test-image/docker.image
+          get_params:
+            skip_download: true
       - in_parallel:
         - task: run-nodejs-test-app-on-gcr
           timeout: 5m
@@ -948,7 +956,7 @@ jobs:
           body: google-cloud-run-buildpack-source/.git/changelog
       - put: google-cloud-run-buildpack-release-image
         params:
-          image: buildpack-build/build
+          image: buildpack-build/build/image
           version: latest
           additional_tags: google-cloud-run-buildpack-version/version
       - put: google-cloud-run-buildpack-version # Bump release branch to the next devel

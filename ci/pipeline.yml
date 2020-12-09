@@ -434,11 +434,10 @@ jobs:
               username: ((containers-instana-io-creds.username))
               password: ((containers-instana-io-creds.password))
           params:
-            CONTEXT: ci/images/cnb-packager
+            CONTEXT: cnb-package-builder-source/ci/images/cnb-packager
             DOCKERFILE: Dockerfile
           inputs:
           - name: cnb-package-builder-source
-            path: .
           outputs:
           - name: image
           run:
@@ -464,11 +463,10 @@ jobs:
               username: ((containers-instana-io-creds.username))
               password: ((containers-instana-io-creds.password))
           params:
-            CONTEXT: ci/images/git-manipulator
+            CONTEXT: git-manipulator-source/ci/images/git-manipulator
             DOCKERFILE: Dockerfile
           inputs:
           - name: git-manipulator-source
-            path: .
           outputs:
           - name: image
           run:
@@ -494,11 +492,10 @@ jobs:
               username: ((containers-instana-io-creds.username))
               password: ((containers-instana-io-creds.password))
           params:
-            CONTEXT: ci/images/gcr-deployer
+            CONTEXT: gcr-deployer-source/ci/images/gcr-deployer
             DOCKERFILE: Dockerfile
           inputs:
           - name: gcr-deployer-source
-            path: .
           outputs:
           - name: image
           run:

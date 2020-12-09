@@ -424,9 +424,9 @@ jobs:
       - get: cnb-package-builder-source
         trigger: true
       - task: build-cnb-package-builder-image
+        privileged: true
         config:
           platform: linux
-          privileged: true
           image_resource:
             type: registry-image
             source:
@@ -454,9 +454,9 @@ jobs:
       - get: git-manipulator-source
         trigger: true
       - task: build-git-manipulator-image
+        privileged: true
         config:
           platform: linux
-          privileged: true
           image_resource:
             type: registry-image
             source:
@@ -484,9 +484,9 @@ jobs:
       - get: gcr-deployer-source
         trigger: true
       - task: build-gcr-deployer-image
+        privileged: true
         config:
           platform: linux
-          privileged: true
           image_resource:
             type: registry-image
             source:

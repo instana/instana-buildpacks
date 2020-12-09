@@ -430,7 +430,9 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: vito/oci-build-task
+              repository: containers.instana.io/instana/concourse-oci-build-task  # internal copy of vito/oci-build-task docker hub image. {sources: https://github.com/vito/oci-build-task}
+              username: ((containers-instana-io-creds.username))
+              password: ((containers-instana-io-creds.password))
           params:
             CONTEXT: ci/images/cnb-packager
             DOCKERFILE: Dockerfile
@@ -458,7 +460,9 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: vito/oci-build-task
+              repository: containers.instana.io/instana/concourse-oci-build-task  # internal copy of vito/oci-build-task docker hub image. {sources: https://github.com/vito/oci-build-task}
+              username: ((containers-instana-io-creds.username))
+              password: ((containers-instana-io-creds.password))
           params:
             CONTEXT: ci/images/git-manipulator
             DOCKERFILE: Dockerfile
@@ -486,7 +490,9 @@ jobs:
           image_resource:
             type: registry-image
             source:
-              repository: vito/oci-build-task
+              repository: containers.instana.io/instana/concourse-oci-build-task  # internal copy of vito/oci-build-task docker hub image. {sources: https://github.com/vito/oci-build-task}
+              username: ((containers-instana-io-creds.username))
+              password: ((containers-instana-io-creds.password))
           params:
             CONTEXT: ci/images/gcr-deployer
             DOCKERFILE: Dockerfile

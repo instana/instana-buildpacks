@@ -10,29 +10,29 @@ var:
 resource_types:
 
   - name: artifactory-resource
-    type: docker-image
+    type: registry-image
     source:
       repository: instana/artifactory-resource
       tag: latest
 
   - name: npm-resource
-    type: docker-image
+    type: registry-image
     source:
       repository: timotto/concourse-npm-resource
 
   - name: instana-version-resource
-    type: docker-image
+    type: registry-image
     source:
       repository: instana/instana-version-resource
       tag: latest
 
   - name: gcs-resource
-    type: docker-image
+    type: registry-image
     source:
       repository: frodenas/gcs-resource
 
   - name: slack-notification
-    type: docker-image
+    type: registry-image
     source:
       repository: cfcommunity/slack-notification-resource
       tag: latest
@@ -94,7 +94,7 @@ resources:
       - &cnb-packager-src-path ci/images/cnb-packager
 
   - name: cnb-package-builder-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &cnb-package-builder-image-name gcr.io/instana-agent-qa/cnb/package-builder
@@ -110,7 +110,7 @@ resources:
       - &git-manipulator-source ci/images/git-manipulator
 
   - name: git-manipulator-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &git-manipulator-image-name gcr.io/instana-agent-qa/cnb/git-manipulator
@@ -126,7 +126,7 @@ resources:
       - &gcr-deployer-source ci/images/gcr-deployer
 
   - name: gcr-deployer-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &gcr-deployer-image-name gcr.io/instana-agent-qa/cnb/gcr-deployer
@@ -134,7 +134,7 @@ resources:
       password: ((project-berlin-tests-gcp-instana-qa))
 
   - name: google-cloud-run-buildpack-snapshot-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &buildpack-snapshot-image-name gcr.io/instana-agent-qa/buildpacks/cloudrun
@@ -142,7 +142,7 @@ resources:
       password: ((project-berlin-tests-gcp-instana-qa))
 
   - name: google-cloud-run-buildpack-release-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &buildpack-release-image-name containers.instana.io/instana/release/google/buildpack
@@ -158,7 +158,7 @@ resources:
       - &test-apps-nodejs-source-path google-cloud-platform/cloud-run/test/apps/nodejs
 
   - name: nodejs-test-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &test-apps-nodejs-image-name gcr.io/instana-agent-qa/buildpacks/test/nodejs
@@ -174,7 +174,7 @@ resources:
       - &test-apps-netcore-source-path google-cloud-platform/cloud-run/test/apps/netcore
 
   - name: netcore-test-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &test-apps-netcore-image-name gcr.io/instana-agent-qa/buildpacks/test/netcore
@@ -190,7 +190,7 @@ resources:
       - &test-apps-java-mvn-source-path google-cloud-platform/cloud-run/test/apps/java/mvn
 
   - name: java-mvn-test-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &test-apps-java-mvn-image-name gcr.io/instana-agent-qa/buildpacks/test/java-mvn
@@ -206,7 +206,7 @@ resources:
       - &test-apps-java-gradle-source-path google-cloud-platform/cloud-run/test/apps/java/gradle
 
   - name: java-gradle-test-image
-    type: docker-image
+    type: registry-image
     icon: cube
     source:
       repository: &test-apps-java-gradle-image-name gcr.io/instana-agent-qa/buildpacks/test/java-gradle
@@ -292,7 +292,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source: &git-manipulator-image
               repository: *git-manipulator-image-name
               tag: latest
@@ -338,7 +338,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source: *git-manipulator-image
           inputs:
             - name: google-cloud-run-buildpack-source
@@ -380,7 +380,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source: *git-manipulator-image
           inputs:
             - name: google-cloud-run-buildpack-source
@@ -421,38 +421,77 @@ jobs:
   - name: build-package-builder-image
     max_in_flight: 1
     plan:
-      - in_parallel:
-        - get: cnb-package-builder-source
-          trigger: true
+      - get: cnb-package-builder-source
+        trigger: true
+      - task: build-cnb-package-builder-image
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
+          params:
+            CONTEXT: cnb-package-builder-source/ci/images/cnb-packager
+          inputs:
+          - name: cnb-package-builder-source
+          outputs:
+          - name: image
+          run:
+            path: build
       - put: cnb-package-builder-image
         params:
-          build: cnb-package-builder-source/ci/images/cnb-packager
-        get_params:
-          skip_download: true
+          params:
+            image: image/image.tar
 
   - name: build-git-manipulator-image
     max_in_flight: 1
     plan:
-      - in_parallel:
-        - get: git-manipulator-source
-          trigger: true
+      - get: git-manipulator-source
+        trigger: true
+      - task: build-git-manipulator-image
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
+          params:
+            CONTEXT: git-manipulator-source/ci/images/git-manipulator
+          inputs:
+          - name: git-manipulator-source
+          outputs:
+          - name: image
+          run:
+            path: build
       - put: git-manipulator-image
         params:
-          build: git-manipulator-source/ci/images/git-manipulator
-        get_params:
-          skip_download: true
+          params:
+            image: image/image.tar
 
   - name: build-gcr-deployer-image
     max_in_flight: 1
     plan:
-      - in_parallel:
-        - get: gcr-deployer-source
-          trigger: true
+      - get: gcr-deployer-source
+        trigger: true
+      - task: build-gcr-deployer-image
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
+          params:
+            CONTEXT: gcr-deployer-source/ci/images/gcr-deployer
+          inputs:
+          - name: gcr-deployer-source
+          outputs:
+          - name: image
+          run:
+            path: build
       - put: gcr-deployer-image
         params:
-          build: gcr-deployer-source/ci/images/gcr-deployer
-        get_params:
-          skip_download: true
+          params:
+            image: image/image.tar
 
   - name: build-buildpack-snapshot
     max_in_flight: 1
@@ -480,7 +519,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source:
               repository: node
               tag: 15-buster
@@ -501,7 +540,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source: &package-builder-image
               repository: gcr.io/instana-agent-qa/cnb/package-builder
               tag: latest
@@ -537,10 +576,9 @@ jobs:
 
                 pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/package.toml --format image
                 docker save -o buildpack-packages/instana-cloudrun-buildpack.image "${IMAGE_NAME}"
-      - put: google-cloud-run-buildpack-snapshot-image
+      - put: google-cloud-run-buildpack-snapshot-image # TODO
         params:
-          load_repository: *buildpack-snapshot-image-name
-          load_file: buildpack-packages/instana-cloudrun-buildpack.image
+          image: buildpack-packages/instana-cloudrun-buildpack.image
         get_params:
           skip_download: true
 
@@ -571,7 +609,7 @@ jobs:
           config:
             platform: linux
             image_resource:
-              type: docker-image
+              type: registry-image
               source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-source
@@ -592,7 +630,7 @@ jobs:
           config:
             platform: linux
             image_resource:
-              type: docker-image
+              type: registry-image
               source:
                 repository: gcr.io/instana-agent-qa/cnb/package-builder
                 tag: latest
@@ -635,7 +673,7 @@ jobs:
           config:
             platform: linux
             image_resource:
-              type: docker-image
+              type: registry-image
               source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-snapshot-image
@@ -653,7 +691,7 @@ jobs:
           config:
             platform: linux
             image_resource:
-              type: docker-image
+              type: registry-image
               source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-snapshot-image
@@ -671,7 +709,7 @@ jobs:
           config:
             platform: linux
             image_resource:
-              type: docker-image
+              type: registry-image
               source: *package-builder-image
             inputs:
               - name: google-cloud-run-buildpack-snapshot-image
@@ -715,7 +753,7 @@ jobs:
           config:
             platform: linux
             image_resource: &e2e-image-resource
-              type: docker-image
+              type: registry-image
               source: &gcr-deployer-image
                 repository: *gcr-deployer-image-name
                 tag: latest
@@ -820,7 +858,7 @@ jobs:
         config: &ensure-only-from-main-pipeline-config
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source:
               repository: busybox
               tag: latest
@@ -840,7 +878,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source:
               repository: *git-manipulator-image-name
               tag: latest
@@ -867,7 +905,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source: *gcr-deployer-image
           inputs:
             - name: google-cloud-run-buildpack-build
@@ -883,7 +921,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source: *git-manipulator-image
           inputs:
             - name: google-cloud-run-buildpack-source
@@ -920,11 +958,9 @@ jobs:
           body: google-cloud-run-buildpack-source/.git/changelog
       - put: google-cloud-run-buildpack-release-image
         params:
-          load: buildpack-build/
-          tag_file: google-cloud-run-buildpack-version/version
-          tag_as_latest: true
-        get_params:
-          skip_download: true
+          image: buildpack-build/build
+          version: latest
+          additional_tags: google-cloud-run-buildpack-version/version
       - put: google-cloud-run-buildpack-version # Bump release branch to the next devel
         params:
           bump: patch

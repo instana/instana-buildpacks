@@ -650,6 +650,7 @@ jobs:
               JSON_KEY: ((gcr-deployment-account-key))
               SOURCE_DIRECTORY: nodejs-test-source/google-cloud-platform/cloud-run/test/apps/nodejs
               IMAGE_FILE: nodejs-test-image/docker.image
+              BUILDPACK_IMAGE: *buildpack-snapshot-image-name
             run: &build-test-image-run
               path: /bin/bash
               args:
@@ -661,13 +662,11 @@ jobs:
                   docker pull gcr.io/buildpacks/builder
                   docker login -u _json_key -p "${JSON_KEY}" https://gcr.io
 
-                  buildpack_image=$(cat google-cloud-run-buildpack-snapshot-image/repository)
-
                   (
                     cd "${SOURCE_DIRECTORY}" \
                     && pack build "${TEST_APP_IMAGE_NAME}" \
                       --buildpack from=builder \
-                      --buildpack ${buildpack_image} \
+                      --buildpack ${BUILDPACK_IMAGE} \
                       --builder gcr.io/buildpacks/builder \
                   )
 

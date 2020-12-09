@@ -603,8 +603,6 @@ jobs:
         - get: google-cloud-run-buildpack-snapshot-image
           passed: [build-buildpack-snapshot]
           trigger: true
-          params:
-            save: true
         - get: google-cloud-run-buildpack-source
         - get: nodejs-test-source
         - get: netcore-test-source

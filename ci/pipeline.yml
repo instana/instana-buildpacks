@@ -432,6 +432,7 @@ jobs:
               repository: vito/oci-build-task
           params:
             CONTEXT: cnb-package-builder-source/ci/images/cnb-packager
+            DOCKERFILE: Dockerfile
           inputs:
           - name: cnb-package-builder-source
           outputs:
@@ -457,6 +458,7 @@ jobs:
               repository: vito/oci-build-task
           params:
             CONTEXT: git-manipulator-source/ci/images/git-manipulator
+            DOCKERFILE: Dockerfile
           inputs:
           - name: git-manipulator-source
           outputs:
@@ -482,6 +484,7 @@ jobs:
               repository: vito/oci-build-task
           params:
             CONTEXT: gcr-deployer-source/ci/images/gcr-deployer
+            DOCKERFILE: Dockerfile
           inputs:
           - name: gcr-deployer-source
           outputs:

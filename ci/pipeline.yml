@@ -585,8 +585,6 @@ jobs:
       - put: google-cloud-run-buildpack-snapshot-image # TODO
         params:
           image: buildpack-packages/instana-cloudrun-buildpack.image
-        get_params:
-          skip_download: true
 
   - name: end-to-end-tests
     max_in_flight: 1
@@ -603,6 +601,8 @@ jobs:
         - get: google-cloud-run-buildpack-snapshot-image
           passed: [build-buildpack-snapshot]
           trigger: true
+          params:
+            format: oci
         - get: google-cloud-run-buildpack-source
         - get: nodejs-test-source
         - get: netcore-test-source

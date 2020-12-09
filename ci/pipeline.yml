@@ -647,10 +647,10 @@ jobs:
               - name: nodejs-test-image
             params: &build-test-image-param
               TEST_APP_IMAGE_NAME: *test-apps-nodejs-image-name
+              BUILDPACK_IMAGE_NAME: *buildpack-snapshot-image-name
               JSON_KEY: ((gcr-deployment-account-key))
               SOURCE_DIRECTORY: nodejs-test-source/google-cloud-platform/cloud-run/test/apps/nodejs
               IMAGE_FILE: nodejs-test-image/docker.image
-              BUILDPACK_IMAGE: *buildpack-snapshot-image-name
             run: &build-test-image-run
               path: /bin/bash
               args:
@@ -659,14 +659,13 @@ jobs:
                   source /docker-lib.sh
                   start_docker
 
-                  docker pull gcr.io/buildpacks/builder
-                  docker login -u _json_key -p "${JSON_KEY}" https://gcr.io
+                  docker load --input google-cloud-run-buildpack-snapshot-image/image.tar
 
                   (
                     cd "${SOURCE_DIRECTORY}" \
                     && pack build "${TEST_APP_IMAGE_NAME}" \
                       --buildpack from=builder \
-                      --buildpack ${BUILDPACK_IMAGE} \
+                      --buildpack ${BUILDPACK_IMAGE_NAME} \
                       --builder gcr.io/buildpacks/builder \
                   )
 
@@ -728,28 +727,16 @@ jobs:
       - in_parallel:
         - put: netcore-test-image
           params:
-            load_repository: *test-apps-netcore-image-name
-            load_file: netcore-test-image/docker.image
-          get_params:
-            skip_download: true
+            image: netcore-test-image/docker.image
         - put: nodejs-test-image
           params:
-            load_repository: *test-apps-nodejs-image-name
-            load_file: nodejs-test-image/docker.image
-          get_params:
-            skip_download: true
+            image: nodejs-test-image/docker.image
         - put: java-mvn-test-image
           params:
-            load_repository: *test-apps-java-mvn-image-name
-            load_file: java-mvn-test-image/docker.image
-          get_params:
-            skip_download: true
+            image: java-mvn-test-image/docker.image
         - put: java-gradle-test-image
           params:
-            load_repository: *test-apps-java-gradle-image-name
-            load_file: java-gradle-test-image/docker.image
-          get_params:
-            skip_download: true
+            image: java-gradle-test-image/docker.image
       - in_parallel:
         - task: run-nodejs-test-app-on-gcr
           timeout: 5m

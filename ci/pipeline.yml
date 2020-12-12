@@ -812,9 +812,9 @@ jobs:
                       --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
                       --header "Content-type: application/json" \
                       --data "{\"timeFrame\":{\"windowSize\":"60000"},\"nameFilter\":\"${SERVICE_NAME}\",\"technologies\":[\"googleCloudRunServiceRevision\"],\"metrics\":[{\"metric\":\"calls\",\"aggregation\":\"SUM\"}]}" \
-                      | jq '.items[]')
+                      | jq --exit-status '.items[]')
 
-                    if echo "${query_result}" | jq '[ .metrics."calls.sum"[][1] ] | add' > 0; then
+                    if echo "${query_result}" | jq --exit-status '[ .metrics."calls.sum"[][1] ] | add' > 0; then
 
                       # Some calls found
                       echo "Found calls for Cloud Run service: $(echo "${query_result}" | jq .)"

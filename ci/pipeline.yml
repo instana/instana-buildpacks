@@ -978,7 +978,6 @@ jobs:
       - put: google-cloud-run-buildpack-release-image
         params:
           image: buildpack-build/build/image
-          version: latest
           additional_tags: google-cloud-run-buildpack-version/version
       - put: google-cloud-run-buildpack-version # Bump release branch to the next devel
         params:

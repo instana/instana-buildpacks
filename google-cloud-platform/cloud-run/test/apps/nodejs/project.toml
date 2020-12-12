@@ -1,0 +1,11 @@
+[project]
+id = "gcr-demo-instana-nodejs"
+version = "1.0"
+
+[build]
+include = [
+    "src/"
+]
+
+[[build.buildpacks]]
+id = "containers.instana.io/instana/release/google/buildpack"

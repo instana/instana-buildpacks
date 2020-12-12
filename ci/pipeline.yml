@@ -61,7 +61,7 @@ resources:
       <<: *instana-buildpack-git-repo-config
       fetch_tags: true
       paths:
-      - google-cloud-platform/cloud-run/
+      - google-cloud-platform/cloud-run/src/
 
   - name: instana-jvm-collector
     type: artifactory-resource

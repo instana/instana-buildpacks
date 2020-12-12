@@ -559,8 +559,9 @@ jobs:
             args:
               - -ce
               - |
+                instrumentation_version=$(cat google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION)
                 mkdir nodejs-instrumentation
-                (cd nodejs-instrumentation && npm install @instana/google-cloud-run@$(cat google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION))
+                (cd nodejs-instrumentation && npm install @instana/google-cloud-run@${instrumentation_version})
                 tar czf instana-nodejs-instrumentation/nodejs-instrumentation.tgz -C nodejs-instrumentation .
       - task: create-buildpack-packages
         privileged: true

@@ -7,6 +7,13 @@ var:
     password: x-oauth-basic
     branch: ((branch))
 
+  git-manipulator-image-resource: &git-manipulator-image-resource
+    type: registry-image
+    source:
+      repository: &git-manipulator-image-name gcr.io/instana-agent-qa/cnb/git-manipulator
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
+
 resource_types:
 
   - name: artifactory-resource
@@ -413,10 +420,24 @@ jobs:
     plan:
       - get: instana-saas-version
         trigger: true
+      - task: update-version
+        config:
+          platform: linux
+          image_resource: *git-manipulator-image-resource
+          inputs:
+            - name: instana-saas-version
+          outputs:
+            - name: google-cloud-run-buildpack
+          run:
+            path: /bin/sh
+            args:
+            - -exc
+            - |
+              saas_version=$(cat instana-saas-version/release)
+              echo "1.${saas_version}.0" > google-cloud-run-buildpack/version
       - put: google-cloud-run-buildpack-version
         params:
-          bump: minor
-          pre: alpha
+          file: google-cloud-run-buildpack/version
 
   - name: build-package-builder-image
     max_in_flight: 1
@@ -576,13 +597,17 @@ jobs:
                 # Delete .gitignore files we keep around
                 find google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
 
+                # Update the version
+                version=$(cat google-cloud-run-buildpack-source/google-cloud-platform/cloud-run.version)
+                sed -i "s/^version = .*$/version = \"${version}\"/" google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/buildpack.toml
+
                 # start docker
                 source /docker-lib.sh
                 start_docker
 
                 pack package-buildpack "${IMAGE_NAME}" --config google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/package.toml --format image
                 docker save -o buildpack-packages/instana-cloudrun-buildpack.image "${IMAGE_NAME}"
-      - put: google-cloud-run-buildpack-snapshot-image # TODO
+      - put: google-cloud-run-buildpack-snapshot-image
         params:
           image: buildpack-packages/instana-cloudrun-buildpack.image
 

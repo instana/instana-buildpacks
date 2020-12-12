@@ -530,10 +530,6 @@ jobs:
         params:
           skip_download: true
       - in_parallel:
-        - get: instana-gcr-npm-package
-          passed: [update-npm-package-version-on-npm-update]
-          params:
-            skip_download: true
         - get: instana-jvm-collector
           passed: [update-jvm-collector-version-on-artifactory-update]
           params:
@@ -579,7 +575,6 @@ jobs:
             - name: instana-jvm-collector
             - name: instana-netcore-dependencies
             - name: instana-nodejs-instrumentation
-            - name: instana-gcr-npm-package
           outputs:
             - name: buildpack-packages
           params:

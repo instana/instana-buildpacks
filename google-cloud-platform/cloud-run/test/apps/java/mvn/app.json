@@ -23,7 +23,7 @@
     "hooks": {
         "prebuild": {
             "commands": [
-                "docker login containers.instana.io -u '_' -p ${INSTANA_AGENT_KEY}"
+                "echo ${INSTANA_AGENT_KEY} | docker login containers.instana.io -u '_' --password-stdin"
             ]
         }
     }

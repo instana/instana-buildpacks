@@ -1,16 +1,16 @@
 [project]
-id = "gcr-demo-instana-nodejs"
+id = "gcr-demo-instana-netcore"
 version = "1.0"
 
 [build]
 
 [[build.buildpacks]]
-id = "google.nodejs.runtime"
-uri = "urn:cnb:builder:google.nodejs.runtime"
+id = "google.dotnet.runtime"
+uri = "urn:cnb:builder:google.dotnet.runtime"
 
 [[build.buildpacks]]
-id = "google.nodejs.npm"
-uri = "urn:cnb:builder:google.nodejs.npm"
+id = "google.dotnet.publish"
+uri = "urn:cnb:builder:google.dotnet.publish"
 
 [[build.buildpacks]]
 id = "google.utils.label"

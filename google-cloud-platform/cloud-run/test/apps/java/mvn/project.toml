@@ -1,16 +1,20 @@
 [project]
-id = "gcr-demo-instana-nodejs"
+id = "gcr-demo-instana-java-mvn"
 version = "1.0"
 
 [build]
 
 [[build.buildpacks]]
-id = "google.nodejs.runtime"
-uri = "urn:cnb:builder:google.nodejs.runtime"
+id = "google.java.runtime"
+uri = "urn:cnb:builder:google.java.runtime"
 
 [[build.buildpacks]]
-id = "google.nodejs.npm"
-uri = "urn:cnb:builder:google.nodejs.npm"
+id = "google.java.maven"
+uri = "urn:cnb:builder:google.java.maven"
+
+[[build.buildpacks]]
+id = "google.config.entrypoint"
+uri = "urn:cnb:builder:google.config.entrypoint"
 
 [[build.buildpacks]]
 id = "google.utils.label"

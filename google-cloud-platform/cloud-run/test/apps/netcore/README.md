@@ -7,6 +7,6 @@ pack build sample-netcore --builder gcr.io/buildpacks/builder --descriptor proje
 docker run -it -ePORT=8080 -p8080:8080 sample-netcore
 ```
 
-Run on Cloud Run (without Instana tracing!):
+Run on Cloud Run:
 
 [![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run)

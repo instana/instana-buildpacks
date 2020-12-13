@@ -8,7 +8,7 @@
             "required": true
         },
         "_JAVA_OPTIONS": {
-            "": "-Xmx264M"
+            "value": "-Xmx264M"
         }
     },
     "options": {

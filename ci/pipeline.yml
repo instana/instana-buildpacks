@@ -688,6 +688,7 @@ jobs:
                       --buildpack from=builder \
                       --buildpack ${BUILDPACK_IMAGE_NAME} \
                       --builder gcr.io/buildpacks/builder \
+                      ${EXTRA_PACK_ARGS} \
                   )
 
                   docker save "${TEST_APP_IMAGE_NAME}" -o "${IMAGE_FILE}"
@@ -726,6 +727,7 @@ jobs:
               TEST_APP_IMAGE_NAME: *test-apps-java-mvn-image-name
               SOURCE_DIRECTORY: java-mvn-test-source/google-cloud-platform/cloud-run/test/apps/java/mvn
               IMAGE_FILE: java-mvn-test-image/docker.image
+              EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
             run: *build-test-image-run
         - task: build-java-gradle-test-image
           privileged: true
@@ -744,6 +746,7 @@ jobs:
               TEST_APP_IMAGE_NAME: *test-apps-java-gradle-image-name
               SOURCE_DIRECTORY: java-gradle-test-source/google-cloud-platform/cloud-run/test/apps/java/gradle
               IMAGE_FILE: java-gradle-test-image/docker.image
+              EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
             run: *build-test-image-run
       - in_parallel:
         - put: netcore-test-image

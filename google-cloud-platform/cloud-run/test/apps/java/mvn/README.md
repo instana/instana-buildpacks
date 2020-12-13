@@ -9,7 +9,7 @@ Run Locally (with Java 11 installed):
 Run Locally with Buildpacks & Docker:
 
 ```sh
-pack build sample-java-mvn --buildpack from=builder --buildpack containers.instana.io/instana/release/google/buildpack --builder gcr.io/buildpacks/builder
+pack build sample-java-mvn --builder gcr.io/buildpacks/builder --descriptor project.toml
 docker run -it -ePORT=8080 -p8080:8080 sample-java-mvn
 ```
 

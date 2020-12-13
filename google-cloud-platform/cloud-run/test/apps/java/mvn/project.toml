@@ -1,5 +1,5 @@
 [project]
-id = "gcr-demo-instana-nodejs"
+id = "gcr-demo-instana-java-mvn"
 version = "1.0"
 
 [build]

@@ -3,8 +3,8 @@
 Run Locally with Buildpacks & Docker:
 
 ```sh
-pack build sample-netcore --buildpack from=builder --buildpack containers.instana.io/instana/release/google/buildpack --builder gcr.io/buildpacks/builder
-docker run -it -ePORT=8080 -p8080:8080 sample-netcore-gradle
+pack build sample-netcore --builder gcr.io/buildpacks/builder --descriptor project.toml
+docker run -it -ePORT=8080 -p8080:8080 sample-netcore
 ```
 
 Run on Cloud Run (without Instana tracing!):

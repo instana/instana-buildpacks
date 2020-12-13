@@ -3,8 +3,8 @@
 Run Locally with Buildpacks & Docker:
 
 ```sh
-pack build sample-nodejs --buildpack from=builder --buildpack containers.instana.io/instana/release/google/buildpack --builder gcr.io/buildpacks/builder --descriptor project.toml
-docker run -it -ePORT=8080 -p8080:8080 sample-nodejs-gradle
+pack build sample-nodejs --builder gcr.io/buildpacks/builder --descriptor project.toml
+docker run -it -ePORT=8080 -p8080:8080 sample-nodejs
 ```
 
 Run on Cloud Run (without Instana tracing!):

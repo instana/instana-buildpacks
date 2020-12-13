@@ -783,6 +783,7 @@ jobs:
               PROJECT_NAME: ((gcp-e2e-tests-project))
               REGION: ((gcp-e2e-tests-region))
               SERVICE_NAME: gcr-cnb-test-e2e-nodejs
+              REQUEST_PATH: ''
               ENDPOINT_URL: ((instana-qa.serverless_endpoint_url))
               AGENT_KEY: ((instana-qa.agent_key))
               APP_IMAGE_NAME: *test-apps-nodejs-image-name
@@ -806,15 +807,15 @@ jobs:
                   service_url=$(gcloud run services list --platform=managed --project ${PROJECT_NAME} | grep "${SERVICE_NAME}" | awk '{ print $4 }')
 
                   while true; do
-                    curl --silent --show-error ${service_url} > /dev/null
+                    curl --silent --show-error ${service_url}/${REQUEST_PATH} > /dev/null
 
                     query_result=$(curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/metrics/services \
                       --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
                       --header "Content-type: application/json" \
                       --data "{\"timeFrame\":{\"windowSize\":"60000"},\"nameFilter\":\"${SERVICE_NAME}\",\"technologies\":[\"googleCloudRunServiceRevision\"],\"metrics\":[{\"metric\":\"calls\",\"aggregation\":\"SUM\"}]}" \
-                      | jq --exit-status '.items[]')
+                      | jq '.items[] | [ .metrics."calls.sum"[][1] ] | add')
 
-                    if echo "${query_result}" | jq --exit-status '[ .metrics."calls.sum"[][1] ] | add' > 0; then
+                    if [ ${query_result} > 0 ]; then
 
                       # Some calls found
                       echo "Found calls for Cloud Run service: $(echo "${query_result}" | jq .)"
@@ -831,6 +832,7 @@ jobs:
               <<: *e2e-params
               SERVICE_NAME: gcr-cnb-test-e2e-netcore
               APP_IMAGE_NAME: *test-apps-netcore-image-name
+              REQUEST_PATH: weatherforecast
             run: *e2e-run
         - task: run-java-mvn-test-app-on-gcr
           timeout: 5m
@@ -977,7 +979,7 @@ jobs:
           body: google-cloud-run-buildpack-source/.git/changelog
       - put: google-cloud-run-buildpack-release-image
         params:
-          image: buildpack-build/build/image
+          image: buildpack-build/image.tar
           additional_tags: google-cloud-run-buildpack-version/version
       - put: google-cloud-run-buildpack-version # Bump release branch to the next devel
         params:

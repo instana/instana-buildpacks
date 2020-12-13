@@ -988,4 +988,9 @@ jobs:
       - put: slack-alert-team-agent
         params:
           channel: '#agent-java-underground'
-          text: New Google Cloud Run CNB version ((.:version-number)) was published:\n((.:changelog))
+          text: |
+            Google Cloud Run CNB version ((.:version-number)) was published!
+
+            Changelog:
+
+            ((.:changelog))

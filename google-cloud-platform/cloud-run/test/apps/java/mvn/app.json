@@ -6,6 +6,9 @@
         },
         "INSTANA_AGENT_KEY": {
             "required": true
+        },
+        "_JAVA_OPTIONS": {
+            "": "-Xmx264M"
         }
     },
     "options": {

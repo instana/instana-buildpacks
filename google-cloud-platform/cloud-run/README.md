@@ -27,4 +27,10 @@ With your Instana dashboard at hand, you can see the Instana Buildpack for Googl
 
 And if you do not already have an Instana dashboard, there is the [free trial of Instana](https://www.instana.com/trial/#instana-cnb-buildpacks), no string attached, just a click away.
 
+## There is more!
+
+Instana's support of Google Cloud Run using this Cloud Native Buildpack is just the beginning.
+
+Head over the [Instana on Google Cloud Platform](https://www.instana.com/google-cloud-application-monitoring/) page to learn what else Instana works great with!
+
 ![Instana free trial!](assets/stan-gcp.png)

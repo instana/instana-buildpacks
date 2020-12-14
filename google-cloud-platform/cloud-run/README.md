@@ -15,3 +15,21 @@ pack build <image-name> --buildpack from=builder --buildpack containers.instana.
 ```
 
 The `--buildpack from=builder` means "use all the buildpacks in the builder", so that we can just "append" the Instana buildpack without overriding the detection process of the other buildpacks.
+
+## See it in action on Google Cloud Run
+
+With your Instana dashboard at hand, you can see the Instana Buildpack for Google Cloud Run in action with one click:
+
+* [Java + Gradle](test/apps/java/gradle)
+* [Java + Maven](test/apps/java/maven)
+* [.NET Core](test/apps/netcore)
+* [Node.js](test/apps/nodejs)
+
+And if you do not already have an Instana dashboard, there is the [free trial of Instana](https://www.instana.com/trial/#instana-cnb-buildpacks), no string attached, just a click away.
+
+## There is more!
+
+Instana's support of Google Cloud Run using this Cloud Native Buildpack is one of the things that Instana does great on Google Cloud Platform.
+Head over the [Instana on Google Cloud Platform](https://www.instana.com/google-cloud-application-monitoring/) page to learn what else Instana works great with!
+
+![Instana free trial!](assets/stan-gcp.png)

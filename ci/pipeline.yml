@@ -771,7 +771,7 @@ jobs:
             skip_download: true
       - in_parallel:
         - task: run-nodejs-test-app-on-gcr
-          timeout: 5m
+          timeout: 20m
           config:
             platform: linux
             image_resource: &e2e-image-resource

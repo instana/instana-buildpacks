@@ -21,7 +21,7 @@ The `--buildpack from=builder` means "use all the buildpacks in the builder", so
 With your Instana dashboard at hand, you can see the Instana Buildpack for Google Cloud Run in action with one click:
 
 * [Java + Gradle](test/apps/java/gradle)
-* [Java + Maven](test/apps/java/maven)
+* [Java + Maven](test/apps/java/mvn)
 * [.NET Core](test/apps/netcore)
 * [Node.js](test/apps/nodejs)
 

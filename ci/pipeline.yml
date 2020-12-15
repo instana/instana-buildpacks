@@ -769,94 +769,93 @@ jobs:
             image: java-gradle-test-image/docker.image
           get_params:
             skip_download: true
-      - in_parallel:
-        - task: run-nodejs-test-app-on-gcr
-          timeout: 20m
-          config:
-            platform: linux
-            image_resource: &e2e-image-resource
-              type: registry-image
-              source: &gcr-deployer-image
-                repository: *gcr-deployer-image-name
-                tag: latest
-                username: _json_key
-                password: ((project-berlin-tests-gcp-instana-qa))
-            params: &e2e-params
-              GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-              PROJECT_NAME: ((gcp-e2e-tests-project))
-              REGION: ((gcp-e2e-tests-region))
-              SERVICE_NAME: gcr-cnb-test-e2e-nodejs
-              REQUEST_PATH: ''
-              ENDPOINT_URL: ((instana-qa.serverless_endpoint_url))
-              AGENT_KEY: ((instana-qa.agent_key))
-              APP_IMAGE_NAME: *test-apps-nodejs-image-name
-              INSTANA_API_ENDPOINT: ((instana-qa.api_url))
-              INSTANA_API_TOKEN: ((instana-qa.api_token))
-            run: &e2e-run
-              path: /bin/bash
-              args:
-                - -ce
-                - |
-                  echo "${GCP_KEY_JSON}" > keyfile.json
-                  gcloud auth activate-service-account --key-file keyfile.json
-                  gcloud run deploy "${SERVICE_NAME}" \
-                    --image=${APP_IMAGE_NAME} \
-                    --project=${PROJECT_NAME} \
-                    --region=${REGION} \
-                    --platform=managed \
-                    --set-env-vars=INSTANA_ENDPOINT_URL=${ENDPOINT_URL},INSTANA_AGENT_KEY=${AGENT_KEY} \
-                    --allow-unauthenticated
+      - task: run-nodejs-test-app-on-gcr
+        timeout: 20m
+        config:
+          platform: linux
+          image_resource: &e2e-image-resource
+            type: registry-image
+            source: &gcr-deployer-image
+              repository: *gcr-deployer-image-name
+              tag: latest
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          params: &e2e-params
+            GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+            PROJECT_NAME: ((gcp-e2e-tests-project))
+            REGION: ((gcp-e2e-tests-region))
+            SERVICE_NAME: gcr-cnb-test-e2e-nodejs
+            REQUEST_PATH: ''
+            ENDPOINT_URL: ((instana-qa.serverless_endpoint_url))
+            AGENT_KEY: ((instana-qa.agent_key))
+            APP_IMAGE_NAME: *test-apps-nodejs-image-name
+            INSTANA_API_ENDPOINT: ((instana-qa.api_url))
+            INSTANA_API_TOKEN: ((instana-qa.api_token))
+          run: &e2e-run
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                echo "${GCP_KEY_JSON}" > keyfile.json
+                gcloud auth activate-service-account --key-file keyfile.json
+                gcloud run deploy "${SERVICE_NAME}" \
+                  --image=${APP_IMAGE_NAME} \
+                  --project=${PROJECT_NAME} \
+                  --region=${REGION} \
+                  --platform=managed \
+                  --set-env-vars=INSTANA_ENDPOINT_URL=${ENDPOINT_URL},INSTANA_AGENT_KEY=${AGENT_KEY} \
+                  --allow-unauthenticated
 
-                  service_url=$(gcloud run services list --platform=managed --project ${PROJECT_NAME} | grep "${SERVICE_NAME}" | awk '{ print $4 }')
+                service_url=$(gcloud run services list --platform=managed --project ${PROJECT_NAME} | grep "${SERVICE_NAME}" | awk '{ print $4 }')
 
-                  while true; do
-                    curl --silent --show-error ${service_url}/${REQUEST_PATH} > /dev/null
+                while true; do
+                  curl --silent --show-error ${service_url}/${REQUEST_PATH} > /dev/null
 
-                    query_result=$(curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/metrics/services \
-                      --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
-                      --header "Content-type: application/json" \
-                      --data "{\"timeFrame\":{\"windowSize\":"60000"},\"nameFilter\":\"${SERVICE_NAME}\",\"technologies\":[\"googleCloudRunServiceRevision\"],\"metrics\":[{\"metric\":\"calls\",\"aggregation\":\"SUM\"}]}" \
-                      | jq '.items[] | [ .metrics."calls.sum"[][1] ] | add')
+                  query_result=$(curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/metrics/services \
+                    --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
+                    --header "Content-type: application/json" \
+                    --data "{\"timeFrame\":{\"windowSize\":"60000"},\"nameFilter\":\"${SERVICE_NAME}\",\"technologies\":[\"googleCloudRunServiceRevision\"],\"metrics\":[{\"metric\":\"calls\",\"aggregation\":\"SUM\"}]}" \
+                    | jq '.items[] | [ .metrics."calls.sum"[][1] ] | add')
 
-                    if [ ${query_result} > 0 ]; then
+                  if [ ${query_result} > 0 ]; then
 
-                      # Some calls found
-                      echo "Found calls for Cloud Run service: $(echo "${query_result}" | jq .)"
+                    # Some calls found
+                    echo "Found calls for Cloud Run service: $(echo "${query_result}" | jq .)"
 
-                      exit 0
-                    fi
-                  done
-        - task: run-netcore-test-app-on-gcr
-          timeout: 5m
-          config:
-            platform: linux
-            image_resource: *e2e-image-resource
-            params:
-              <<: *e2e-params
-              SERVICE_NAME: gcr-cnb-test-e2e-netcore
-              APP_IMAGE_NAME: *test-apps-netcore-image-name
-              REQUEST_PATH: weatherforecast
-            run: *e2e-run
-        - task: run-java-mvn-test-app-on-gcr
-          timeout: 5m
-          config:
-            platform: linux
-            image_resource: *e2e-image-resource
-            params:
-              <<: *e2e-params
-              SERVICE_NAME: gcr-cnb-test-e2e-java-mvn
-              APP_IMAGE_NAME: *test-apps-java-mvn-image-name
-            run: *e2e-run
-        - task: run-java-gradle-test-app-on-gcr
-          timeout: 5m
-          config:
-            platform: linux
-            image_resource: *e2e-image-resource
-            params:
-              <<: *e2e-params
-              SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
-              APP_IMAGE_NAME: *test-apps-java-gradle-image-name
-            run: *e2e-run
+                    exit 0
+                  fi
+                done
+      - task: run-netcore-test-app-on-gcr
+        timeout: 5m
+        config:
+          platform: linux
+          image_resource: *e2e-image-resource
+          params:
+            <<: *e2e-params
+            SERVICE_NAME: gcr-cnb-test-e2e-netcore
+            APP_IMAGE_NAME: *test-apps-netcore-image-name
+            REQUEST_PATH: weatherforecast
+          run: *e2e-run
+      - task: run-java-mvn-test-app-on-gcr
+        timeout: 5m
+        config:
+          platform: linux
+          image_resource: *e2e-image-resource
+          params:
+            <<: *e2e-params
+            SERVICE_NAME: gcr-cnb-test-e2e-java-mvn
+            APP_IMAGE_NAME: *test-apps-java-mvn-image-name
+          run: *e2e-run
+      - task: run-java-gradle-test-app-on-gcr
+        timeout: 5m
+        config:
+          platform: linux
+          image_resource: *e2e-image-resource
+          params:
+            <<: *e2e-params
+            SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
+            APP_IMAGE_NAME: *test-apps-java-gradle-image-name
+          run: *e2e-run
       - put: google-cloud-run-buildpack-build
         params:
           file: google-cloud-run-buildpack-image/google-cloud-run-buildpack-*.tgz

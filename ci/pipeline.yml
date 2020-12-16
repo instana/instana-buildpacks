@@ -578,6 +578,7 @@ jobs:
           outputs:
             - name: buildpack-packages
           params:
+            STARTUP_TIMEOUT: 600
             IMAGE_NAME: *buildpack-snapshot-image-name
           run:
             path: /bin/bash
@@ -629,125 +630,129 @@ jobs:
         - get: netcore-test-source
         - get: java-mvn-test-source
         - get: java-gradle-test-source
-      - in_parallel:
-        - task: prepare-buildpack-image-for-gcs-upload
-          config:
-            platform: linux
-            image_resource:
-              type: registry-image
-              source: *package-builder-image
-            inputs:
-              - name: google-cloud-run-buildpack-source
-              - name: google-cloud-run-buildpack-snapshot-image
-            outputs:
-              - name: google-cloud-run-buildpack-image
-            params:
-              BRANCH: ((branch))
-            run:
-              path: /bin/bash
-              args:
-                - -ce
-                - |
-                  short_ref=$(cat google-cloud-run-buildpack-source/.git/short_ref)
-                  tar czf google-cloud-run-buildpack-image/google-cloud-run-buildpack-${BRANCH}-${short_ref}.tgz -C google-cloud-run-buildpack-snapshot-image .
-        - task: build-nodejs-test-image
-          privileged: true
-          config:
-            platform: linux
-            image_resource:
-              type: registry-image
-              source:
-                repository: gcr.io/instana-agent-qa/cnb/package-builder
-                tag: latest
-                username: _json_key
-                password: ((project-berlin-tests-gcp-instana-qa))
-            inputs:
-              - name: google-cloud-run-buildpack-snapshot-image
-              - name: nodejs-test-source
-            outputs:
-              - name: nodejs-test-image
-            params: &build-test-image-param
-              TEST_APP_IMAGE_NAME: *test-apps-nodejs-image-name
-              BUILDPACK_IMAGE_NAME: *buildpack-snapshot-image-name
-              JSON_KEY: ((gcr-deployment-account-key))
-              SOURCE_DIRECTORY: nodejs-test-source/google-cloud-platform/cloud-run/test/apps/nodejs
-              IMAGE_FILE: nodejs-test-image/docker.image
-            run: &build-test-image-run
-              path: /bin/bash
-              args:
-                - -ce
-                - |
-                  source /docker-lib.sh
-                  start_docker
+      - task: prepare-buildpack-image-for-gcs-upload
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: *package-builder-image
+          inputs:
+            - name: google-cloud-run-buildpack-source
+            - name: google-cloud-run-buildpack-snapshot-image
+          outputs:
+            - name: google-cloud-run-buildpack-image
+          params:
+            BRANCH: ((branch))
+          run:
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                short_ref=$(cat google-cloud-run-buildpack-source/.git/short_ref)
+                tar czf google-cloud-run-buildpack-image/google-cloud-run-buildpack-${BRANCH}-${short_ref}.tgz -C google-cloud-run-buildpack-snapshot-image .
+      - task: build-nodejs-test-image
+        privileged: true
+        config:
+          platform: linux
+          attempts: 3
+          image_resource:
+            type: registry-image
+            source:
+              repository: gcr.io/instana-agent-qa/cnb/package-builder
+              tag: latest
+              username: _json_key
+              password: ((project-berlin-tests-gcp-instana-qa))
+          inputs:
+            - name: google-cloud-run-buildpack-snapshot-image
+            - name: nodejs-test-source
+          outputs:
+            - name: nodejs-test-image
+          params: &build-test-image-param
+            STARTUP_TIMEOUT: 600
+            TEST_APP_IMAGE_NAME: *test-apps-nodejs-image-name
+            BUILDPACK_IMAGE_NAME: *buildpack-snapshot-image-name
+            JSON_KEY: ((gcr-deployment-account-key))
+            SOURCE_DIRECTORY: nodejs-test-source/google-cloud-platform/cloud-run/test/apps/nodejs
+            IMAGE_FILE: nodejs-test-image/docker.image
+          run: &build-test-image-run
+            path: /bin/bash
+            args:
+              - -ce
+              - |
+                source /docker-lib.sh
+                start_docker
 
-                  docker load --input google-cloud-run-buildpack-snapshot-image/image.tar
+                docker load --input google-cloud-run-buildpack-snapshot-image/image.tar
 
-                  (
-                    cd "${SOURCE_DIRECTORY}" \
-                    && pack build "${TEST_APP_IMAGE_NAME}" \
-                      --buildpack from=builder \
-                      --buildpack ${BUILDPACK_IMAGE_NAME} \
-                      --builder gcr.io/buildpacks/builder \
-                      ${EXTRA_PACK_ARGS} \
-                  )
+                (
+                  cd "${SOURCE_DIRECTORY}" \
+                  && pack build "${TEST_APP_IMAGE_NAME}" \
+                    --buildpack from=builder \
+                    --buildpack ${BUILDPACK_IMAGE_NAME} \
+                    --builder gcr.io/buildpacks/builder \
+                    ${EXTRA_PACK_ARGS} \
+                )
 
-                  docker save "${TEST_APP_IMAGE_NAME}" -o "${IMAGE_FILE}"
-        - task: build-netcore-test-image
-          privileged: true
-          config:
-            platform: linux
-            image_resource:
-              type: registry-image
-              source: *package-builder-image
-            inputs:
-              - name: google-cloud-run-buildpack-snapshot-image
-              - name: netcore-test-source
-            outputs:
-              - name: netcore-test-image
-            params:
-              <<: *build-test-image-param
-              TEST_APP_IMAGE_NAME: *test-apps-netcore-image-name
-              SOURCE_DIRECTORY: netcore-test-source/google-cloud-platform/cloud-run/test/apps/netcore
-              IMAGE_FILE: netcore-test-image/docker.image
-            run: *build-test-image-run
-        - task: build-java-mvn-test-image
-          privileged: true
-          config:
-            platform: linux
-            image_resource:
-              type: registry-image
-              source: *package-builder-image
-            inputs:
-              - name: google-cloud-run-buildpack-snapshot-image
-              - name: java-mvn-test-source
-            outputs:
-              - name: java-mvn-test-image
-            params:
-              <<: *build-test-image-param
-              TEST_APP_IMAGE_NAME: *test-apps-java-mvn-image-name
-              SOURCE_DIRECTORY: java-mvn-test-source/google-cloud-platform/cloud-run/test/apps/java/mvn
-              IMAGE_FILE: java-mvn-test-image/docker.image
-              EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
-            run: *build-test-image-run
-        - task: build-java-gradle-test-image
-          privileged: true
-          config:
-            platform: linux
-            image_resource:
-              type: registry-image
-              source: *package-builder-image
-            inputs:
-              - name: google-cloud-run-buildpack-snapshot-image
-              - name: java-gradle-test-source
-            outputs:
-              - name: java-gradle-test-image
-            params:
-              <<: *build-test-image-param
-              TEST_APP_IMAGE_NAME: *test-apps-java-gradle-image-name
-              SOURCE_DIRECTORY: java-gradle-test-source/google-cloud-platform/cloud-run/test/apps/java/gradle
-              IMAGE_FILE: java-gradle-test-image/docker.image
-              EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
-            run: *build-test-image-run
+                docker save "${TEST_APP_IMAGE_NAME}" -o "${IMAGE_FILE}"
+      - task: build-netcore-test-image
+        privileged: true
+        attempts: 3
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: *package-builder-image
+          inputs:
+            - name: google-cloud-run-buildpack-snapshot-image
+            - name: netcore-test-source
+          outputs:
+            - name: netcore-test-image
+          params:
+            <<: *build-test-image-param
+            TEST_APP_IMAGE_NAME: *test-apps-netcore-image-name
+            SOURCE_DIRECTORY: netcore-test-source/google-cloud-platform/cloud-run/test/apps/netcore
+            IMAGE_FILE: netcore-test-image/docker.image
+          run: *build-test-image-run
+      - task: build-java-mvn-test-image
+        privileged: true
+        attempts: 3
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: *package-builder-image
+          inputs:
+            - name: google-cloud-run-buildpack-snapshot-image
+            - name: java-mvn-test-source
+          outputs:
+            - name: java-mvn-test-image
+          params:
+            <<: *build-test-image-param
+            TEST_APP_IMAGE_NAME: *test-apps-java-mvn-image-name
+            SOURCE_DIRECTORY: java-mvn-test-source/google-cloud-platform/cloud-run/test/apps/java/mvn
+            IMAGE_FILE: java-mvn-test-image/docker.image
+            EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
+          run: *build-test-image-run
+      - task: build-java-gradle-test-image
+        privileged: true
+        attempts: 3
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: *package-builder-image
+          inputs:
+            - name: google-cloud-run-buildpack-snapshot-image
+            - name: java-gradle-test-source
+          outputs:
+            - name: java-gradle-test-image
+          params:
+            <<: *build-test-image-param
+            TEST_APP_IMAGE_NAME: *test-apps-java-gradle-image-name
+            SOURCE_DIRECTORY: java-gradle-test-source/google-cloud-platform/cloud-run/test/apps/java/gradle
+            IMAGE_FILE: java-gradle-test-image/docker.image
+            EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
+          run: *build-test-image-run
       - in_parallel:
         - put: netcore-test-image
           params:
@@ -773,6 +778,7 @@ jobs:
         timeout: 20m
         config:
           platform: linux
+          attempts: 3
           image_resource: &e2e-image-resource
             type: registry-image
             source: &gcr-deployer-image
@@ -829,6 +835,7 @@ jobs:
         timeout: 5m
         config:
           platform: linux
+          attempts: 3
           image_resource: *e2e-image-resource
           params:
             <<: *e2e-params
@@ -840,6 +847,7 @@ jobs:
         timeout: 5m
         config:
           platform: linux
+          attempts: 3
           image_resource: *e2e-image-resource
           params:
             <<: *e2e-params
@@ -850,6 +858,7 @@ jobs:
         timeout: 5m
         config:
           platform: linux
+          attempts: 3
           image_resource: *e2e-image-resource
           params:
             <<: *e2e-params

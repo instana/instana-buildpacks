@@ -694,6 +694,11 @@ jobs:
                 )
 
                 docker save "${TEST_APP_IMAGE_NAME}" -o "${IMAGE_FILE}"
+      - put: nodejs-test-image
+        params:
+          image: nodejs-test-image/docker.image
+        get_params:
+          skip_download: true
       - task: build-netcore-test-image
         privileged: true
         attempts: 3
@@ -713,6 +718,11 @@ jobs:
             SOURCE_DIRECTORY: netcore-test-source/google-cloud-platform/cloud-run/test/apps/netcore
             IMAGE_FILE: netcore-test-image/docker.image
           run: *build-test-image-run
+      - put: netcore-test-image
+        params:
+          image: netcore-test-image/docker.image
+        get_params:
+          skip_download: true
       - task: build-java-mvn-test-image
         privileged: true
         attempts: 3
@@ -733,6 +743,11 @@ jobs:
             IMAGE_FILE: java-mvn-test-image/docker.image
             EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
           run: *build-test-image-run
+      - put: java-mvn-test-image
+        params:
+          image: java-mvn-test-image/docker.image
+        get_params:
+          skip_download: true
       - task: build-java-gradle-test-image
         privileged: true
         attempts: 3
@@ -753,32 +768,16 @@ jobs:
             IMAGE_FILE: java-gradle-test-image/docker.image
             EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
           run: *build-test-image-run
-      - in_parallel:
-        - put: netcore-test-image
-          params:
-            image: netcore-test-image/docker.image
-          get_params:
-            skip_download: true
-        - put: nodejs-test-image
-          params:
-            image: nodejs-test-image/docker.image
-          get_params:
-            skip_download: true
-        - put: java-mvn-test-image
-          params:
-            image: java-mvn-test-image/docker.image
-          get_params:
-            skip_download: true
-        - put: java-gradle-test-image
-          params:
-            image: java-gradle-test-image/docker.image
-          get_params:
-            skip_download: true
+      - put: java-gradle-test-image
+        params:
+          image: java-gradle-test-image/docker.image
+        get_params:
+          skip_download: true
       - task: run-nodejs-test-app-on-gcr
         timeout: 20m
+        attempts: 3
         config:
           platform: linux
-          attempts: 3
           image_resource: &e2e-image-resource
             type: registry-image
             source: &gcr-deployer-image
@@ -800,7 +799,7 @@ jobs:
           run: &e2e-run
             path: /bin/bash
             args:
-              - -ce
+              - -cex
               - |
                 echo "${GCP_KEY_JSON}" > keyfile.json
                 gcloud auth activate-service-account --key-file keyfile.json
@@ -817,25 +816,25 @@ jobs:
                 while true; do
                   curl --silent --show-error ${service_url}/${REQUEST_PATH} > /dev/null
 
-                  query_result=$(curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/metrics/services \
-                    --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
-                    --header "Content-type: application/json" \
-                    --data "{\"timeFrame\":{\"windowSize\":"60000"},\"nameFilter\":\"${SERVICE_NAME}\",\"technologies\":[\"googleCloudRunServiceRevision\"],\"metrics\":[{\"metric\":\"calls\",\"aggregation\":\"SUM\"}]}" \
-                    | jq '.items[] | [ .metrics."calls.sum"[][1] ] | add')
-
-                  if [ ${query_result} > 0 ]; then
-
-                    # Some calls found
-                    echo "Found calls for Cloud Run service: $(echo "${query_result}" | jq .)"
+                  if query_result=$(
+                    curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/analyze/traces \
+                      --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
+                      --header "Content-type: application/json" \
+                      --data "{\"pagination\": {\"retrievalSize\": 1 },\"timeFrame\": {\"windowSize\": 1200000},\"tagFilters\":[{\"name\": \"${SERVICE_NAME}\",\"value\": \"gcr-cnb-test-e2e-netcore\",\"operator\": \"EQUALS\"}]}" \
+                    | jq --exit-status '.items[]' \
+                    )
+                  then
 
                     exit 0
                   fi
+
+                  sleep 5
                 done
       - task: run-netcore-test-app-on-gcr
         timeout: 5m
+        attempts: 3
         config:
           platform: linux
-          attempts: 3
           image_resource: *e2e-image-resource
           params:
             <<: *e2e-params
@@ -845,9 +844,9 @@ jobs:
           run: *e2e-run
       - task: run-java-mvn-test-app-on-gcr
         timeout: 5m
+        attempts: 3
         config:
           platform: linux
-          attempts: 3
           image_resource: *e2e-image-resource
           params:
             <<: *e2e-params
@@ -856,9 +855,9 @@ jobs:
           run: *e2e-run
       - task: run-java-gradle-test-app-on-gcr
         timeout: 5m
+        attempts: 3
         config:
           platform: linux
-          attempts: 3
           image_resource: *e2e-image-resource
           params:
             <<: *e2e-params

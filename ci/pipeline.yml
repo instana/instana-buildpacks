@@ -715,6 +715,7 @@ jobs:
             PROJECT_NAME: ((gcp-e2e-tests-project))
             REGION: ((gcp-e2e-tests-region))
             SERVICE_NAME: gcr-cnb-test-e2e-nodejs
+            MEMORY_SIZE: '256Mi'
             REQUEST_PATH: ''
             ENDPOINT_URL: ((instana-qa.serverless_endpoint_url))
             AGENT_KEY: ((instana-qa.agent_key))
@@ -742,7 +743,8 @@ jobs:
                   --region=${REGION} \
                   --platform=managed \
                   --set-env-vars=${ENV} \
-                  --allow-unauthenticated
+                  --allow-unauthenticated \
+                  --memory ${MEMORY_SIZE}
 
                 service_url=$(gcloud run services list --platform=managed --project ${PROJECT_NAME} | grep "${SERVICE_NAME}" | awk '{ print $4 }')
 
@@ -753,7 +755,7 @@ jobs:
                     curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/analyze/traces \
                       --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
                       --header "Content-type: application/json" \
-                      --data "{\"pagination\": {\"retrievalSize\": 1 },\"timeFrame\": {\"windowSize\": 1200000},\"tagFilters\":[{\"name\": \"gcp.cloudrun.service.name\",\"value\": \"${SERVICE_NAME}\",\"operator\": \"EQUALS\"}]}" \
+                      --data "{\"pagination\": {\"retrievalSize\": 1 },\"timeFrame\": {\"windowSize\": 60000},\"tagFilters\":[{\"name\": \"gcp.cloudrun.service.name\",\"value\": \"${SERVICE_NAME}\",\"operator\": \"EQUALS\"}]}" \
                     | jq --exit-status '.items[]' \
                     )
                   then
@@ -785,6 +787,7 @@ jobs:
             SERVICE_NAME: gcr-cnb-test-e2e-java-mvn
             APP_IMAGE_NAME: *test-apps-java-mvn-image-name
             EXTRA_ENV_ARGS: '_JAVA_OPTIONS=-Xmx264M'
+            MEMORY_SIZE: '320Mi'
           run: *e2e-run
       - task: run-java-gradle-test-app-on-gcr
         timeout: 5m
@@ -797,6 +800,7 @@ jobs:
             SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
             APP_IMAGE_NAME: *test-apps-java-gradle-image-name
             EXTRA_ENV_ARGS: '_JAVA_OPTIONS=-Xmx264M'
+            MEMORY_SIZE: '320Mi'
           run: *e2e-run
       - put: google-cloud-run-buildpack-build
         params:

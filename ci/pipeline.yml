@@ -668,7 +668,6 @@ jobs:
             TEST_APP_IMAGE_NAME: *test-apps-java-mvn-image-name
             SOURCE_DIRECTORY: java-mvn-test-source/google-cloud-platform/cloud-run/test/apps/java/mvn
             IMAGE_FILE: java-mvn-test-image/docker.image
-            EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
           run: *build-test-image-run
       - put: java-mvn-test-image
         params:
@@ -693,7 +692,6 @@ jobs:
             TEST_APP_IMAGE_NAME: *test-apps-java-gradle-image-name
             SOURCE_DIRECTORY: java-gradle-test-source/google-cloud-platform/cloud-run/test/apps/java/gradle
             IMAGE_FILE: java-gradle-test-image/docker.image
-            EXTRA_PACK_ARGS: '--env "_JAVA_OPTIONS=-Xmx264M"'
           run: *build-test-image-run
       - put: java-gradle-test-image
         params:
@@ -728,7 +726,14 @@ jobs:
             args:
               - -c
               - |
+                ENV="INSTANA_ENDPOINT_URL=${ENDPOINT_URL},INSTANA_AGENT_KEY=${AGENT_KEY}"
+
+                if [ -n "${EXTRA_ENV_ARGS}" ]; then
+                  ENV="${ENV},${EXTRA_ENV_ARGS}"
+                fi
+
                 set -euxo pipefail
+
                 echo "${GCP_KEY_JSON}" > keyfile.json
                 gcloud auth activate-service-account --key-file keyfile.json
                 gcloud run deploy "${SERVICE_NAME}" \
@@ -736,7 +741,7 @@ jobs:
                   --project=${PROJECT_NAME} \
                   --region=${REGION} \
                   --platform=managed \
-                  --set-env-vars=INSTANA_ENDPOINT_URL=${ENDPOINT_URL},INSTANA_AGENT_KEY=${AGENT_KEY} \
+                  --set-env-vars=${ENV} \
                   --allow-unauthenticated
 
                 service_url=$(gcloud run services list --platform=managed --project ${PROJECT_NAME} | grep "${SERVICE_NAME}" | awk '{ print $4 }')
@@ -779,6 +784,7 @@ jobs:
             <<: *e2e-params
             SERVICE_NAME: gcr-cnb-test-e2e-java-mvn
             APP_IMAGE_NAME: *test-apps-java-mvn-image-name
+            EXTRA_ENV_ARGS: '_JAVA_OPTIONS=-Xmx264M'
           run: *e2e-run
       - task: run-java-gradle-test-app-on-gcr
         timeout: 5m
@@ -790,6 +796,7 @@ jobs:
             <<: *e2e-params
             SERVICE_NAME: gcr-cnb-test-e2e-java-gradle
             APP_IMAGE_NAME: *test-apps-java-gradle-image-name
+            EXTRA_ENV_ARGS: '_JAVA_OPTIONS=-Xmx264M'
           run: *e2e-run
       - put: google-cloud-run-buildpack-build
         params:

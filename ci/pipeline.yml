@@ -889,9 +889,7 @@ jobs:
       - task: prepare-changelog
         config:
           platform: linux
-          image_resource:
-            type: registry-image
-            source: *git-manipulator-image-resource
+          image_resource: *git-manipulator-image-resource
           inputs:
             - name: google-cloud-run-buildpack-source
           outputs:

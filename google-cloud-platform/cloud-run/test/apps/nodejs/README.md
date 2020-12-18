@@ -3,7 +3,8 @@
 ## Run Locally, Buildpacks & Docker
 
 ```sh
-pack build sample-nodejs --builder gcr.io/buildpacks/builder --descriptor project.toml
+echo ${INSTANA_AGENT_KEY} | docker login containers.instana.io -u '_' --password-stdin
+pack build sample-nodejs --buildpack from=builder --buildpack containers.instana.io/instana/release/google/buildpack --builder gcr.io/buildpacks/builder
 docker run -it -ePORT=8080 -p8080:8080 sample-nodejs
 ```
 

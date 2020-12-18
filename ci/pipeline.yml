@@ -73,6 +73,16 @@ resources:
       file_name: standalone-collector-jvm-:version.jar
       skip_ssl_verification: true
 
+  - name: instana-jvm-dependencies-version
+    type: semver
+    icon: alpha
+    source: &semver-version
+      <<: *instana-buildpack-git-repo-config
+      driver: git
+      file: google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
+      git_user: Stan <stan@instana.com>
+      commit_message: '[changelog] Update the JVM collector for Google Cloud Run to version %version%'
+
   - name: instana-netcore-dependencies
     type: artifactory-resource
     icon: github
@@ -83,6 +93,16 @@ resources:
       file_name: core-clr-extension-:version.zip
       skip_ssl_verification: true
 
+  - name: instana-netcore-dependencies-version
+    type: semver
+    icon: alpha
+    source: &semver-version
+      <<: *instana-buildpack-git-repo-config
+      driver: git
+      file: google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
+      git_user: Stan <stan@instana.com>
+      commit_message: '[changelog] Update .NET Core dependencies for Google Cloud Run to version %version%'
+
   - name: instana-gcr-npm-package
     type: npm-resource
     icon: cube-unfolded
@@ -91,6 +111,16 @@ resources:
       package: google-cloud-run
       registry:
         uri: https://registry.npmjs.org/
+
+  - name: instana-nodejs-dependencies-version
+    type: semver
+    icon: alpha
+    source: &semver-version
+      <<: *instana-buildpack-git-repo-config
+      driver: git
+      file: google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
+      git_user: Stan <stan@instana.com>
+      commit_message: '[changelog] Update Node.js package for Google Cloud Run to version %version%'
 
   - name: cnb-package-builder-source
     type: git
@@ -286,134 +316,31 @@ jobs:
   - name: update-npm-package-version-on-npm-update
     max_in_flight: 1
     plan:
-      - in_parallel:
-        - get: instana-gcr-npm-package
-          trigger: true
-          params:
-            skip_download: true
-        - get: google-cloud-run-buildpack-source
-        - get: git-manipulator-image
-          passed: [build-git-manipulator-image]
-      - task: update-npm-package-version
-        attempts: 3
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source: &git-manipulator-image
-              repository: *git-manipulator-image-name
-              tag: latest
-              username: _json_key
-              password: ((project-berlin-tests-gcp-instana-qa))
-          inputs:
-            - name: google-cloud-run-buildpack-source
-            - name: instana-gcr-npm-package
-          outputs:
-            - name: google-cloud-run-buildpack-source
-          run:
-            path: /bin/bash
-            args:
-              - -ce
-              - |
-                NPM_PACKAGE_VERSION=$(cat instana-gcr-npm-package/version)
-
-                cd google-cloud-run-buildpack-source
-
-                git config --global user.name "Stan"
-                git config --global user.email "stan@instana.com"
-
-                git pull origin ((branch))
-
-                echo -n "${NPM_PACKAGE_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
-
-                git commit -am "[changelog] Update Node.js package for Google Cloud Run to ${NPM_PACKAGE_VERSION}" || true
-      - put: google-cloud-run-buildpack-source
+      - get: instana-gcr-npm-package
+        trigger: true
         params:
-          repository: google-cloud-run-buildpack-source
+          skip_download: true
+      - put: instana-nodejs-dependencies-version
+        params:
+          file: instana-gcr-npm-package/version
 
   - name: update-netcore-dependencies-version-on-artifactory-update
     max_in_flight: 1
     plan:
-      - in_parallel:
-        - get: instana-netcore-dependencies
-          trigger: true
-        - get: google-cloud-run-buildpack-source
-        - get: git-manipulator-image
-          passed: [build-git-manipulator-image]
-      - task: update-netcore-dependencies-version
-        attempts: 3
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source: *git-manipulator-image
-          inputs:
-            - name: google-cloud-run-buildpack-source
-            - name: instana-netcore-dependencies
-          outputs:
-            - name: google-cloud-run-buildpack-source
-          run:
-            path: /bin/bash
-            args:
-              - -ce
-              - |
-                NETCORE_DEPENDENCIES_VERSION=$(cat instana-netcore-dependencies/version)
-
-                cd google-cloud-run-buildpack-source
-
-                git config --global user.name "Stan"
-                git config --global user.email "stan@instana.com"
-
-                git pull origin ((branch))
-
-                echo "${NETCORE_DEPENDENCIES_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
-
-                git commit -am "[changelog] Update .NET Core dependencies for Google Cloud Run to ${NETCORE_DEPENDENCIES_VERSION}" || true
-      - put: google-cloud-run-buildpack-source
+      - get: instana-netcore-dependencies
+        trigger: true
+      - put: instana-netcore-dependencies-version
         params:
-          repository: google-cloud-run-buildpack-source
+          file: instana-netcore-dependencies/version
 
   - name: update-jvm-collector-version-on-artifactory-update
     max_in_flight: 1
     plan:
-      - in_parallel:
-        - get: instana-jvm-collector
-          trigger: true
-        - get: google-cloud-run-buildpack-source
-        - get: git-manipulator-image
-          passed: [build-git-manipulator-image]
-      - task: update-java-collector-version
-        attempts: 3
-        config:
-          platform: linux
-          image_resource:
-            type: registry-image
-            source: *git-manipulator-image
-          inputs:
-            - name: google-cloud-run-buildpack-source
-            - name: instana-jvm-collector
-          outputs:
-            - name: google-cloud-run-buildpack-source
-          run:
-            path: /bin/bash
-            args:
-              - -ce
-              - |
-                JVM_COLLECTOR_VERSION=$(cat instana-jvm-collector/version)
-
-                cd google-cloud-run-buildpack-source
-
-                git config --global user.name "Stan"
-                git config --global user.email "stan@instana.com"
-
-                git pull origin ((branch))
-
-                echo "${JVM_COLLECTOR_VERSION}" > google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
-
-                git commit -am "[changelog] Update the JVM collector for Google Cloud Run to ${JVM_COLLECTOR_VERSION}" || true
-      - put: google-cloud-run-buildpack-source
+      - get: instana-jvm-collector
+        trigger: true
+      - put: instana-jvm-dependencies-version
         params:
-          repository: google-cloud-run-buildpack-source
+          file: instana-jvm-dependencies/version
 
   - name: update-buildpack-version-on-saas-update
     max_in_flight: 1
@@ -825,7 +752,6 @@ jobs:
                     | jq --exit-status '.items[]' \
                     )
                   then
-
                     exit 0
                   fi
 

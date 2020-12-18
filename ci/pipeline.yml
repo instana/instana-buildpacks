@@ -887,7 +887,7 @@ jobs:
           platform: linux
           image_resource:
             type: registry-image
-            source: *git-manipulator-image
+            source: *git-manipulator-image-resource
           inputs:
             - name: google-cloud-run-buildpack-source
           outputs:

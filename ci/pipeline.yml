@@ -820,7 +820,7 @@ jobs:
                     curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/analyze/traces \
                       --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
                       --header "Content-type: application/json" \
-                      --data "{\"pagination\": {\"retrievalSize\": 1 },\"timeFrame\": {\"windowSize\": 1200000},\"tagFilters\":[{\"name\": \"${SERVICE_NAME}\",\"value\": \"gcr-cnb-test-e2e-netcore\",\"operator\": \"EQUALS\"}]}" \
+                      --data "{\"pagination\": {\"retrievalSize\": 1 },\"timeFrame\": {\"windowSize\": 1200000},\"tagFilters\":[{\"name\": \"gcp.cloudrun.service.name\",\"value\": \"${SERVICE_NAME}\",\"operator\": \"EQUALS\"}]}" \
                     | jq --exit-status '.items[]' \
                     )
                   then

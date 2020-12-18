@@ -150,7 +150,7 @@ resources:
     type: registry-image
     icon: cube
     source:
-      repository: &git-manipulator-image-name gcr.io/instana-agent-qa/cnb/git-manipulator
+      repository: *git-manipulator-image-name
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 

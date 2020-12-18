@@ -799,7 +799,7 @@ jobs:
           run: &e2e-run
             path: /bin/bash
             args:
-              - -cex
+              - -cexo pipefail
               - |
                 echo "${GCP_KEY_JSON}" > keyfile.json
                 gcloud auth activate-service-account --key-file keyfile.json

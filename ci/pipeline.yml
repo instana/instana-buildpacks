@@ -522,7 +522,7 @@ jobs:
                 find google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src -name .gitignore | xargs -I {} rm -f {}
 
                 # Update the version
-                version=$(cat google-cloud-run-buildpack-source/google-cloud-platform/cloud-run.version | sed -e 's/-.*$//)
+                version=$(cat google-cloud-run-buildpack-source/google-cloud-platform/cloud-run.version | sed -e 's/-.*$//')
                 sed -i "s/^version = .*$/version = \"${version}\"/" google-cloud-run-buildpack-source/google-cloud-platform/cloud-run/src/buildpack.toml
 
                 # start docker

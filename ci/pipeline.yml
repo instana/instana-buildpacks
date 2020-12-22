@@ -255,6 +255,7 @@ resources:
     source:
       endpoint: ((instana-qa.api_url))
       api_token: ((instana-qa.api_token))
+      format: '1.%minor%.0'
 
   - name: google-cloud-run-buildpack-version
     type: semver
@@ -347,24 +348,9 @@ jobs:
     plan:
       - get: instana-saas-version
         trigger: true
-      - task: update-version
-        config:
-          platform: linux
-          image_resource: *git-manipulator-image-resource
-          inputs:
-            - name: instana-saas-version
-          outputs:
-            - name: google-cloud-run-buildpack
-          run:
-            path: /bin/sh
-            args:
-            - -exc
-            - |
-              saas_version=$(cat instana-saas-version/release)
-              echo "1.${saas_version}.0" > google-cloud-run-buildpack/version
       - put: google-cloud-run-buildpack-version
         params:
-          file: google-cloud-run-buildpack/version
+          file: instana-saas-version/release
 
   - name: build-package-builder-image
     max_in_flight: 1

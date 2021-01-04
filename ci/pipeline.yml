@@ -76,7 +76,7 @@ resources:
   - name: instana-jvm-dependencies-version
     type: semver
     icon: alpha
-    source: &semver-version
+    source:
       <<: *instana-buildpack-git-repo-config
       driver: git
       file: google-cloud-platform/cloud-run/src/instrumentation/jvm/VERSION
@@ -96,7 +96,7 @@ resources:
   - name: instana-netcore-dependencies-version
     type: semver
     icon: alpha
-    source: &semver-version
+    source:
       <<: *instana-buildpack-git-repo-config
       driver: git
       file: google-cloud-platform/cloud-run/src/instrumentation/netcore/VERSION
@@ -115,7 +115,7 @@ resources:
   - name: instana-nodejs-dependencies-version
     type: semver
     icon: alpha
-    source: &semver-version
+    source:
       <<: *instana-buildpack-git-repo-config
       driver: git
       file: google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
@@ -260,7 +260,7 @@ resources:
   - name: google-cloud-run-buildpack-version
     type: semver
     icon: alpha
-    source: &semver-version
+    source:
       <<: *instana-buildpack-git-repo-config
       driver: git
       file: google-cloud-platform/cloud-run.version

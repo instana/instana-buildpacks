@@ -14,6 +14,10 @@ var:
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
+  e2e-tests-setup:
+    gcp-project: &gcp-e2e-tests-project instana-agent-qa
+    gcp-region: &gcp-e2e-tests-region us-west1
+
 resource_types:
 
   - name: artifactory-resource
@@ -302,8 +306,6 @@ jobs:
           artifacts-instana-io.password: ((artifacts-instana-io.password))
           containers-instana-io-creds.username: ((containers-instana-io-creds.username))
           containers-instana-io-creds.password: ((containers-instana-io-creds.password))
-          gcp-e2e-tests-project: instana-agent-qa
-          gcp-e2e-tests-region: us-west1
           project-berlin-gcp-account-key: ((project-berlin-gcp-account-key))
           project-berlin-tests-gcp-instana-qa: ((project-berlin-tests-gcp-instana-qa))
           instana-qa.endpoint_host: ((instana-qa.endpoint_host))
@@ -698,8 +700,8 @@ jobs:
               password: ((project-berlin-tests-gcp-instana-qa))
           params: &e2e-params
             GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-            PROJECT_NAME: ((gcp-e2e-tests-project))
-            REGION: ((gcp-e2e-tests-region))
+            PROJECT_NAME: *gcp-e2e-tests-project
+            REGION: *gcp-e2e-tests-region
             SERVICE_NAME: gcr-cnb-test-e2e-nodejs
             MEMORY_SIZE: '256Mi'
             REQUEST_PATH: ''

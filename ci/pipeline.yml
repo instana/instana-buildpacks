@@ -797,7 +797,6 @@ jobs:
     on_failure:
       put: slack-alert-team-agent
       params:
-        channel: '#agent-java-underground'
         text: End-to-end tests for the Google Cloud Run CNB on branch ((branch)) failed!
 
   - name: release-buildpack
@@ -921,7 +920,6 @@ jobs:
           pre: dev
       - put: slack-alert-team-agent
         params:
-          channel: '#agent-java-underground'
           text: |
             Google Cloud Run CNB version ((.:version-number)) was published!
 
@@ -931,5 +929,4 @@ jobs:
     on_failure:
       put: slack-alert-team-agent
       params:
-        channel: '#agent-java-underground'
         text: Release of the Google Cloud Run CNB version ((.:version-number)) failed!

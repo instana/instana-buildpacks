@@ -798,6 +798,7 @@ jobs:
       put: slack-alert-team-agent
       params:
         text: End-to-end tests for the Google Cloud Run CNB on branch ((branch)) failed!
+        channel: '#tech-agent-delivery'
 
   - name: release-buildpack
     max_in_flight: 1
@@ -810,6 +811,9 @@ jobs:
         - get: google-cloud-run-buildpack-version
           params:
             bump: final
+      - load_var: version-number
+        file: google-cloud-run-buildpack-version/version
+        reveal: true
       - task: ensure-only-from-main-pipeline # Avoid that branch pipelines execute release jobs
         config: &ensure-only-from-main-pipeline-config
           platform: linux
@@ -853,9 +857,6 @@ jobs:
                 cd google-cloud-run-buildpack-source
 
                 [[ $( git --no-pager log -1 "${short_ref}" --pretty='%s' ) =~ '[semver:skip]' ]] && (echo "semver:skip tag found in commit ${short_ref} subject" && git --no-pager log -1 ${short_ref} && exit 1) || true
-      - load_var: version-number
-        file: google-cloud-run-buildpack-version/version
-        reveal: true
       - task: prep-buildpack-file
         timeout: 5m
         config:
@@ -926,7 +927,10 @@ jobs:
             Changelog:
 
             ((.:changelog))
+          channel: '#tech-agent-delivery'
     on_failure:
-      put: slack-alert-team-agent
-      params:
-        text: Release of the Google Cloud Run CNB version ((.:version-number)) failed!
+      do:
+        - put: slack-alert-team-agent
+          params:
+            text: Release of the Google Cloud Run CNB version ((.:version-number)) failed!
+            channel: '#tech-agent-delivery'

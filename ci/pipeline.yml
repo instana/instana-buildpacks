@@ -343,7 +343,7 @@ jobs:
         trigger: true
       - put: instana-jvm-dependencies-version
         params:
-          file: instana-jvm-dependencies/version
+          file: instana-jvm-collector/version
 
   - name: update-buildpack-version-on-saas-update
     max_in_flight: 1

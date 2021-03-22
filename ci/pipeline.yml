@@ -288,7 +288,7 @@ resources:
   - name: slack-alert-team-agent
     type: slack-notification
     source:
-      url: ((slack-webhook-team-agent.webhoook_url))
+      url: ((team-agent-slack-webhook))
 
 jobs:
 
@@ -314,7 +314,7 @@ jobs:
           instana-qa.api_url: ((instana-qa.api_url))
           instana-qa.api_token: ((instana-qa.api_token))
           gcr-deployment-account-key: ((gcr-deployment-account-key))
-          slack-webhook-team-agent.webhoook_url: ((slack-webhook-team-agent.webhoook_url))
+          team-agent-slack-webhook: ((team-agent-slack-webhook))
 
   - name: update-npm-package-version-on-npm-update
     max_in_flight: 1

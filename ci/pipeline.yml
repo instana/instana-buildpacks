@@ -3,7 +3,7 @@
 var:
   instana-buildpack-git-repo-config: &instana-buildpack-git-repo-config
     uri: https://github.com/instana/instana-buildpack.git
-    username: ((project-berlin-gh-token))
+    username: ((instanacd-github-api-token))
     password: x-oauth-basic
     branch: ((branch))
 
@@ -283,7 +283,7 @@ resources:
     source:
       owner: instana
       repository: instana-buildpacks
-      access_token: ((project-berlin-gh-token))
+      access_token: ((instanacd-github-api-token))
 
   - name: slack-alert-team-agent
     type: slack-notification
@@ -301,7 +301,6 @@ jobs:
         file: pipeline-source/ci/pipeline.yml
         vars:
           branch: ((branch))
-          project-berlin-gh-token: ((project-berlin-gh-token))
           artifacts-instana-io.username: ((artifacts-instana-io.username))
           artifacts-instana-io.password: ((artifacts-instana-io.password))
           containers-instana-io-creds.username: ((containers-instana-io-creds.username))

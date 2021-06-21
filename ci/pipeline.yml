@@ -208,6 +208,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-nodejs-image-name gcr.io/instana-agent-qa/buildpacks/test/nodejs
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -224,6 +225,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-netcore-image-name gcr.io/instana-agent-qa/buildpacks/test/netcore
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -240,6 +242,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-java-mvn-image-name gcr.io/instana-agent-qa/buildpacks/test/java-mvn
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -256,6 +259,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-java-gradle-image-name gcr.io/instana-agent-qa/buildpacks/test/java-gradle
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 

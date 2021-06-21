@@ -175,6 +175,7 @@ resources:
       repository: &gcr-deployer-image-name gcr.io/instana-agent-qa/cnb/gcr-deployer
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: google-cloud-run-buildpack-snapshot-image
     type: registry-image

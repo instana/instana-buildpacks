@@ -181,6 +181,7 @@ resources:
       repository: &buildpack-snapshot-image-name gcr.io/instana-agent-qa/buildpacks/cloudrun
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: google-cloud-run-buildpack-release-image
     type: registry-image
@@ -870,7 +871,7 @@ jobs:
             source: *gcr-deployer-image
           inputs:
             - name: google-cloud-run-buildpack-build
-          outputs: 
+          outputs:
             - name: buildpack-build
           run:
             path: /bin/bash

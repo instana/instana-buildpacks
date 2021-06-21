@@ -159,6 +159,7 @@ resources:
       repository: *git-manipulator-image-name
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: gcr-deployer-source
     type: git

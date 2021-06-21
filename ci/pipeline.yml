@@ -13,6 +13,7 @@ var:
       repository: &git-manipulator-image-name gcr.io/instana-agent-qa/cnb/git-manipulator
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   e2e-tests-setup:
     gcp-project: &gcp-e2e-tests-project instana-agent-qa
@@ -141,6 +142,7 @@ resources:
       repository: &cnb-package-builder-image-name gcr.io/instana-agent-qa/cnb/package-builder
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: git-manipulator-source
     type: git
@@ -157,6 +159,7 @@ resources:
       repository: *git-manipulator-image-name
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: gcr-deployer-source
     type: git
@@ -173,6 +176,7 @@ resources:
       repository: &gcr-deployer-image-name gcr.io/instana-agent-qa/cnb/gcr-deployer
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: google-cloud-run-buildpack-snapshot-image
     type: registry-image
@@ -181,6 +185,7 @@ resources:
       repository: &buildpack-snapshot-image-name gcr.io/instana-agent-qa/buildpacks/cloudrun
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: google-cloud-run-buildpack-release-image
     type: registry-image
@@ -203,6 +208,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-nodejs-image-name gcr.io/instana-agent-qa/buildpacks/test/nodejs
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -219,6 +225,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-netcore-image-name gcr.io/instana-agent-qa/buildpacks/test/netcore
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -235,6 +242,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-java-mvn-image-name gcr.io/instana-agent-qa/buildpacks/test/java-mvn
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -251,6 +259,7 @@ resources:
     icon: cube
     source:
       repository: &test-apps-java-gradle-image-name gcr.io/instana-agent-qa/buildpacks/test/java-gradle
+      tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
 
@@ -870,7 +879,7 @@ jobs:
             source: *gcr-deployer-image
           inputs:
             - name: google-cloud-run-buildpack-build
-          outputs: 
+          outputs:
             - name: buildpack-build
           run:
             path: /bin/bash

@@ -13,6 +13,7 @@ var:
       repository: &git-manipulator-image-name gcr.io/instana-agent-qa/cnb/git-manipulator
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   e2e-tests-setup:
     gcp-project: &gcp-e2e-tests-project instana-agent-qa
@@ -141,6 +142,7 @@ resources:
       repository: &cnb-package-builder-image-name gcr.io/instana-agent-qa/cnb/package-builder
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      tag: latest
 
   - name: git-manipulator-source
     type: git

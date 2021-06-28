@@ -54,6 +54,11 @@ resource_types:
     source:
       repository: cfcommunity/slack-notification-resource
       tag: latest
+  
+  - name: gem-version-resource
+    type: registry-image
+    source:
+      repository: instana/gem-version-resource
 
 resources:
 
@@ -132,6 +137,16 @@ resources:
       file: google-cloud-platform/cloud-run/src/instrumentation/nodejs/VERSION
       git_user: Stan <stan@instana.com>
       commit_message: '[changelog] Update Node.js package for Google Cloud Run to version %version%'
+      
+  - name: instana-ruby-dependencies-version
+    type: semver
+    icon: alpha
+    source:
+      <<: *instana-buildpack-git-repo-config
+      driver: git
+      file: google-cloud-platform/cloud-run/src/instrumentation/ruby/VERSION
+      git_user: Stan <stan@instana.com>
+      commit_message: '[changelog] Update Ruby package for Google Cloud Run to version %version%'
 
   - name: cnb-package-builder-source
     type: git
@@ -310,6 +325,11 @@ resources:
     type: slack-notification
     source:
       url: ((team-agent-slack-webhook))
+      
+  - name: instana-ruby-gem
+    type: gem-version-resource
+    source:
+      gem: instana
 
 jobs:
 
@@ -373,6 +393,15 @@ jobs:
       - put: google-cloud-run-buildpack-version
         params:
           file: instana-saas-version/release
+          
+  - name: update-ruby-dependencies-version-on-gem-update
+    max_in_flight: 1
+    plan:
+      - get: instana-ruby-gem
+        trigger: true
+      - put: instana-ruby-dependencies-version
+        params:
+          file: instana-ruby-gem/version
 
   - name: build-package-builder-image
     max_in_flight: 1

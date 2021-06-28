@@ -80,6 +80,27 @@ if [ -f pom.xml ] || [ -f settings.gradle ] || (find . -name *.jar | grep .); th
     collector_installed=true
 fi
 
+if [ -f Gemfile.lock ]; then
+    echo '|-> Found a Ruby application (found "Gemfile.lock" file)'
+
+    readonly ruby_instrumentation_archive=$(find /cnb/buildpacks/instana.gcp.cloudrun -name ruby-instrumentation.tgz | head -1)
+
+    echo '|-> Installing the ruby module and its dependencies'
+
+    tar -xzf "${ruby_instrumentation_archive}" -C /workspace
+
+    echo '|-> Creating the "ruby" layer'
+    readonly instana_ruby_layer="${LAYERS_DIR}/ruby"
+    echo 'launch = true' > "${instana_ruby_layer}.toml"
+
+    echo '|-> Exporting the "RUBYOPT" environment variable'
+    mkdir -p "${instana_ruby_layer}/env"
+    echo -n "-I/workspace/autotrace/ruby -r autotrace/ruby" > "${instana_ruby_layer}/env/RUBYOPT"
+    echo -n "/workspace/gem-home" > "${instana_ruby_layer}/env/AUTOTRACE_RUBY_HOME"
+    
+    collector_installed=true
+fi
+
 if [ ${collector_installed} = true ]; then
     echo '|-! Do not forget to set the "INSTANA_ENDPOINT_URL" and "INSTANA_AGENT_KEY" environment variables in your Cloud Run service revision'
 fi

@@ -814,18 +814,10 @@ jobs:
               config:
                 platform: linux
                 image_resource: *e2e-image-resource
-                params: *e2e-params
-                  GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
-                  PROJECT_NAME: *gcp-e2e-tests-project
-                  REGION: *gcp-e2e-tests-region
+                params: 
+                  <<: *e2e-params
                   SERVICE_NAME: gcr-cnb-test-e2e-ruby
-                  MEMORY_SIZE: '256Mi'
-                  REQUEST_PATH: ''
-                  ENDPOINT_URL: ((instana-qa.serverless_endpoint_url))
-                  AGENT_KEY: ((instana-qa.agent_key))
                   APP_IMAGE_NAME: *test-apps-ruby-image-name
-                  INSTANA_API_ENDPOINT: ((instana-qa.api_url))
-                  INSTANA_API_TOKEN: ((instana-qa.api_token))
                 run: &e2e-run
                   path: /bin/bash
                   args:

@@ -1,0 +1,17 @@
+[project]
+id = "gcr-demo-instana-ruby"
+version = "1.0"
+
+[build]
+
+[[build.buildpacks]]
+id = "heroku.ruby.runtime"
+uri = "urn:cnb:registry:heroku/ruby"
+
+[[build.buildpacks]]
+id = "google.utils.label"
+uri = "urn:cnb:builder:google.utils.label"
+
+[[build.buildpacks]]
+id = "instana.gcp.cloudrun"
+uri = "docker:/containers.instana.io/instana/release/google/buildpack"

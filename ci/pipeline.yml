@@ -289,6 +289,23 @@ resources:
       tag: latest
       username: _json_key
       password: ((project-berlin-tests-gcp-instana-qa))
+      
+  - name: ruby-test-source
+    type: git
+    icon: github
+    source:
+      <<: *instana-buildpack-git-repo-config
+      paths:
+      - &test-apps-ruby-source-path google-cloud-platform/cloud-run/test/apps/ruby
+
+  - name: ruby-test-image
+    type: registry-image
+    icon: cube
+    source:
+      repository: &test-apps-ruby-image-name gcr.io/instana-agent-qa/buildpacks/test/ruby
+      tag: latest
+      username: _json_key
+      password: ((project-berlin-tests-gcp-instana-qa))
 
   - name: instana-saas-version
     type: instana-version-resource
@@ -619,6 +636,7 @@ jobs:
             format: oci
         - get: google-cloud-run-buildpack-source
         - get: nodejs-test-source
+        - get: ruby-test-source
         - get: netcore-test-source
         - get: java-mvn-test-source
         - get: java-gradle-test-source
@@ -759,6 +777,122 @@ jobs:
 
                       sleep 5
                     done
+          - do:
+            - task: build-ruby-test-image
+              privileged: true
+              config:
+                platform: linux
+                attempts: 3
+                image_resource:
+                  type: registry-image
+                  source:
+                    repository: gcr.io/instana-agent-qa/cnb/package-builder
+                    tag: latest
+                    username: _json_key
+                    password: ((project-berlin-tests-gcp-instana-qa))
+                inputs:
+                  - name: google-cloud-run-buildpack-snapshot-image
+                  - name: ruby-test-source
+                outputs:
+                  - name: ruby-test-image
+                params: &build-test-image-param
+                  STARTUP_TIMEOUT: 600
+                  TEST_APP_IMAGE_NAME: *test-apps-ruby-image-name
+                  BUILDPACK_IMAGE_NAME: *buildpack-snapshot-image-name
+                  JSON_KEY: ((gcr-deployment-account-key))
+                  SOURCE_DIRECTORY: ruby-test-source/google-cloud-platform/cloud-run/test/apps/ruby
+                  IMAGE_FILE: ruby-test-image/docker.image
+                run: &build-test-image-run
+                  path: /bin/bash
+                  args:
+                    - -ce
+                    - |
+                      source /docker-lib.sh
+                      start_docker
+  
+                      docker load --input google-cloud-run-buildpack-snapshot-image/image.tar
+  
+                      (
+                        cd "${SOURCE_DIRECTORY}" \
+                        && pack build "${TEST_APP_IMAGE_NAME}" \
+                          --buildpack from=builder \
+                          --buildpack ${BUILDPACK_IMAGE_NAME} \
+                          --builder gcr.io/buildpacks/builder \
+                          ${EXTRA_PACK_ARGS} \
+                      )
+  
+                      docker save "${TEST_APP_IMAGE_NAME}" -o "${IMAGE_FILE}"
+            - put: ruby-test-image
+              params:
+                image: ruby-test-image/docker.image
+              get_params:
+                skip_download: true
+            - task: run-ruby-test-app-on-gcr
+              timeout: 20m
+              attempts: 3
+              config:
+                platform: linux
+                image_resource: &e2e-image-resource
+                  type: registry-image
+                  source: &gcr-deployer-image
+                    repository: *gcr-deployer-image-name
+                    tag: latest
+                    username: _json_key
+                    password: ((project-berlin-tests-gcp-instana-qa))
+                params: &e2e-params
+                  GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
+                  PROJECT_NAME: *gcp-e2e-tests-project
+                  REGION: *gcp-e2e-tests-region
+                  SERVICE_NAME: gcr-cnb-test-e2e-ruby
+                  MEMORY_SIZE: '256Mi'
+                  REQUEST_PATH: ''
+                  ENDPOINT_URL: ((instana-qa.serverless_endpoint_url))
+                  AGENT_KEY: ((instana-qa.agent_key))
+                  APP_IMAGE_NAME: *test-apps-ruby-image-name
+                  INSTANA_API_ENDPOINT: ((instana-qa.api_url))
+                  INSTANA_API_TOKEN: ((instana-qa.api_token))
+                run: &e2e-run
+                  path: /bin/bash
+                  args:
+                    - -c
+                    - |
+                      ENV="INSTANA_ENDPOINT_URL=${ENDPOINT_URL},INSTANA_AGENT_KEY=${AGENT_KEY}"
+  
+                      if [ -n "${EXTRA_ENV_ARGS}" ]; then
+                        ENV="${ENV},${EXTRA_ENV_ARGS}"
+                      fi
+  
+                      set -euxo pipefail
+  
+                      echo "${GCP_KEY_JSON}" > keyfile.json
+                      gcloud auth activate-service-account --key-file keyfile.json
+                      gcloud run deploy "${SERVICE_NAME}" \
+                        --image=${APP_IMAGE_NAME} \
+                        --project=${PROJECT_NAME} \
+                        --region=${REGION} \
+                        --platform=managed \
+                        --set-env-vars=${ENV} \
+                        --allow-unauthenticated \
+                        --memory ${MEMORY_SIZE}
+  
+                      service_url=$(gcloud run services list --platform=managed --project ${PROJECT_NAME} | grep "${SERVICE_NAME}" | awk '{ print $4 }')
+  
+                      while true; do
+                        curl --silent --show-error ${service_url}/${REQUEST_PATH} > /dev/null
+  
+                        if query_result=$(
+                          curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/analyze/traces \
+                            --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
+                            --header "Content-type: application/json" \
+                            --data "{\"pagination\": {\"retrievalSize\": 1 },\"timeFrame\": {\"windowSize\": 60000},\"tagFilters\":[{\"name\": \"gcp.cloudrun.service.name\",\"value\": \"${SERVICE_NAME}\",\"operator\": \"EQUALS\"}]}" \
+                          | jq --exit-status '.items[]' \
+                          )
+                        then
+                          exit 0
+                        fi
+  
+                        sleep 5
+                      done
         - do:
           - task: build-netcore-test-image
             privileged: true

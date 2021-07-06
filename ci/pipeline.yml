@@ -802,26 +802,7 @@ jobs:
                   JSON_KEY: ((gcr-deployment-account-key))
                   SOURCE_DIRECTORY: ruby-test-source/google-cloud-platform/cloud-run/test/apps/ruby
                   IMAGE_FILE: ruby-test-image/docker.image
-                run: &build-test-image-run
-                  path: /bin/bash
-                  args:
-                    - -ce
-                    - |
-                      source /docker-lib.sh
-                      start_docker
-  
-                      docker load --input google-cloud-run-buildpack-snapshot-image/image.tar
-  
-                      (
-                        cd "${SOURCE_DIRECTORY}" \
-                        && pack build "${TEST_APP_IMAGE_NAME}" \
-                          --buildpack from=builder \
-                          --buildpack ${BUILDPACK_IMAGE_NAME} \
-                          --builder gcr.io/buildpacks/builder \
-                          ${EXTRA_PACK_ARGS} \
-                      )
-  
-                      docker save "${TEST_APP_IMAGE_NAME}" -o "${IMAGE_FILE}"
+                run: *build-test-image-run
             - put: ruby-test-image
               params:
                 image: ruby-test-image/docker.image

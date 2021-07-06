@@ -506,6 +506,8 @@ jobs:
   - name: build-buildpack-snapshot
     max_in_flight: 1
     plan:
+      - get: ruby-autotrace
+        trigger: false
       - get: google-cloud-run-buildpack-source
         trigger: true
       - get: cnb-package-builder-image

@@ -818,48 +818,7 @@ jobs:
                   <<: *e2e-params
                   SERVICE_NAME: gcr-cnb-test-e2e-ruby
                   APP_IMAGE_NAME: *test-apps-ruby-image-name
-                run: &e2e-run
-                  path: /bin/bash
-                  args:
-                    - -c
-                    - |
-                      ENV="INSTANA_ENDPOINT_URL=${ENDPOINT_URL},INSTANA_AGENT_KEY=${AGENT_KEY}"
-  
-                      if [ -n "${EXTRA_ENV_ARGS}" ]; then
-                        ENV="${ENV},${EXTRA_ENV_ARGS}"
-                      fi
-  
-                      set -euxo pipefail
-  
-                      echo "${GCP_KEY_JSON}" > keyfile.json
-                      gcloud auth activate-service-account --key-file keyfile.json
-                      gcloud run deploy "${SERVICE_NAME}" \
-                        --image=${APP_IMAGE_NAME} \
-                        --project=${PROJECT_NAME} \
-                        --region=${REGION} \
-                        --platform=managed \
-                        --set-env-vars=${ENV} \
-                        --allow-unauthenticated \
-                        --memory ${MEMORY_SIZE}
-  
-                      service_url=$(gcloud run services list --platform=managed --project ${PROJECT_NAME} | grep "${SERVICE_NAME}" | awk '{ print $4 }')
-  
-                      while true; do
-                        curl --silent --show-error ${service_url}/${REQUEST_PATH} > /dev/null
-  
-                        if query_result=$(
-                          curl --silent --fail --show-error ${INSTANA_API_ENDPOINT}/api/application-monitoring/analyze/traces \
-                            --header "Authorization: apiToken ${INSTANA_API_TOKEN}" \
-                            --header "Content-type: application/json" \
-                            --data "{\"pagination\": {\"retrievalSize\": 1 },\"timeFrame\": {\"windowSize\": 60000},\"tagFilters\":[{\"name\": \"gcp.cloudrun.service.name\",\"value\": \"${SERVICE_NAME}\",\"operator\": \"EQUALS\"}]}" \
-                          | jq --exit-status '.items[]' \
-                          )
-                        then
-                          exit 0
-                        fi
-  
-                        sleep 5
-                      done
+                run: *e2e-run
         - do:
           - task: build-netcore-test-image
             privileged: true

@@ -795,7 +795,7 @@ jobs:
                   - name: ruby-test-source
                 outputs:
                   - name: ruby-test-image
-                params: &build-test-image-param
+                params:
                   STARTUP_TIMEOUT: 600
                   TEST_APP_IMAGE_NAME: *test-apps-ruby-image-name
                   BUILDPACK_IMAGE_NAME: *buildpack-snapshot-image-name

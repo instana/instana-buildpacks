@@ -75,7 +75,7 @@ resources:
     icon: github
     source:
       <<: *instana-buildpack-git-repo-config
-      fetch_tags: true
+      fetch_tags: false
       paths:
       - google-cloud-platform/cloud-run/src/
 

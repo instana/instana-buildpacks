@@ -813,14 +813,8 @@ jobs:
               attempts: 3
               config:
                 platform: linux
-                image_resource: &e2e-image-resource
-                  type: registry-image
-                  source: &gcr-deployer-image
-                    repository: *gcr-deployer-image-name
-                    tag: latest
-                    username: _json_key
-                    password: ((project-berlin-tests-gcp-instana-qa))
-                params: &e2e-params
+                image_resource: *e2e-image-resource
+                params: *e2e-params
                   GCP_KEY_JSON: ((project-berlin-tests-gcp-instana-qa))
                   PROJECT_NAME: *gcp-e2e-tests-project
                   REGION: *gcp-e2e-tests-region
